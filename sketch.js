@@ -9,6 +9,8 @@ let enemiesDestroyed = 0;
 let totalEnemies = 10;
 let currentLevel = 1;
 let lastEnemyShot = 0;
+let boss = null;
+let levelStartTime = 0;
 
 function setup() {
     createCanvas(800, 900);
@@ -78,6 +80,28 @@ function createEnemies() {
             });
         }
     }
+}
+
+function createBoss(){
+    boss = {
+        x: width / 2,
+        y: -100,
+        size: 80,
+        speed: 3,
+        hp: 7,
+        maxHp: 7,
+        canShoot: true,
+        type: 'boss',
+        lastShot: 0,
+        state: 'entering',
+
+        movePattern: 0,
+        moveTimer: 0,
+        targetX: width /2,
+
+        specialAttackTimer: 0,
+        isCharging: false
+    };
 }
 
 function updateGame() {
