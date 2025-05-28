@@ -104,6 +104,161 @@ function createBoss(){
     };
 }
 
+function updateGalagaEnemy(enemy){
+    let currentTime = millis();
+
+    switch (enemy.state){
+        case 'entering':
+            if (currentTime > enemy.enterTime){
+                //mueve enemigos al centro para comenzar circulo
+                let dx = enemy.circleCenterX - enemy.x;
+                let dy = enemy.circleCenterY - enemy.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist > 10){
+                    enemy.x += (dx/dist)*enemy.speed;
+                    enemy.y += (dy/dist)*enemy.speed;
+                } else {
+                    enemy.state = 'circling';
+                    enemy.circleTime = currentTime;
+                }
+            }
+            break;
+        
+        case 'circling':
+            //formacion ciruclar
+            enemy.circlePhase += enemy.circleSpeed;
+            enemy.x = enemy.circleCenterX + Math.cos(enemy.circlePhase) * enemy.circleRadius;
+            enemy.y = enemy.circleCenterY + Math.sin(enemy.circlePhase) * enemy.circleRadius * 0.6;
+            //manda a los enemigos a formacion despues de 2.4 segundos
+            if (currentTime * enemy.circleTime > 2000 + Math.random() * 2000){
+                enemy.state = 'formation';
+                enemy.formationTime = currentTime;
+            }
+            break;
+
+        case 'formation':
+            let dx = enemy.targetX - enemy.x;
+            let dy = enemy.targetY - enemy.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist > 5){
+                enemy.x += (dx/dist)*enemy.speed;
+                enemy.y += (dy/dist)*enemy.speed;
+            } else {
+                enemy.state = 'inFormation';
+            }
+            break;
+
+        case 'inFormation':
+
+        enemy.y += 0.5;
+        enemy.x += Math.sin(currentTime * 0.002 + enemy.circlePhase) * 0.5;
+
+        if (currentTime > enemy.nextAttackTime){
+            if (Math.random() < 0.3){
+                enemy.state = 'attacking';
+                enemy.attackStartTime = currentTime;
+            }
+            enemy.nextAttackTime = currentTime + Math.random()*8000 + 5000;
+        }
+        //hace que disparen regularmente
+        if (enemy.canShoot && currentTime - enemy.lastShot > 1500 + Math.random() * 1000) {
+            enemyBullets.push({
+                x: enemy.x,
+                y: enemy.y + enemy.size/2,
+                size: 5,
+                speed: 4
+            });
+            enemy.lastShot = currentTime;
+            }
+            break;
+        
+        case 'attacking':
+            let playerDx = player.x - enemy.x;
+            let playerDy = player.y - enemy.y;
+            let playerDist = Math.sqrt(playerDx*playerDx + playerDy*playerDy);
+
+            if (playerDist > 20){
+                enemy.x += (playerDx / playerDist) * (enemy.speed * 2);
+                enemy.y += (playerDy / playerDist) * (enemy.speed * 2);
+            }
+
+            if (currentTime - enemy.attackStartTime > 3000){
+                enemy.state = 'formation';
+            }
+            break;
+    }    
+}
+
+function updateBoss(){
+    let currentTime = millis();
+
+    switch (boss.state){
+        case 'entering':
+            boss.y += boss.speed;
+            if (boss.y >= 100){
+                boss.state = 'active';
+                boss.y = 100;
+            }
+            break;
+
+        case 'active':
+            //patron de movimiento para el jefe
+
+            boss.moveTimer += 1;
+
+            if (boss.moveTimer % 120 === 0){
+                boss.movePattern = (boss.movePattern + 1)%3;
+                boss.targetX = 100 + Math.random()*(width - 200);
+            }
+            //movimiento al objetivo
+            let dx = boss.targetX - boss.x;
+            if (Math.abs(dx) > 5){
+                boss.x += dx > 0 ? boss.speed : -boss.speed;
+            }
+            //patrones de disparo
+            if (currentTime - boss.lastShot > 800){
+                //diparo triple
+                for (let angle = -0.3; angle <= 0.3; angle += 0.3){
+                    enemyBullets.push({
+                        x: boss.x + Math.sin(angle) * 30,
+                        y: boss.y + boss.size/2,
+                        size: 6,
+                        speed: 5,
+                        vx: Math.sin(angle)*2,
+                        vy: 5
+                    });
+                }
+                boss.lastShot = currentTime;
+            }
+
+            if (currentTime - boss.specialAttackTimer > 5000){
+                bossSpecialAttack();
+                boss.specialAttackTimer = currentTime;
+            }
+            break;
+    }
+    
+    for (let i = enemyBullets.length - 1; i >= 0; i--){
+        let bullet = enemyBullets[i];
+        if (bullet.vx !== undefined){
+            bullet.x += bullet.vx;
+            bullet.y += bullet.vy;
+        }
+    }
+    //colision del jefe con el jugador
+    if (collision(boxx, player)){
+        lives -= 2;
+        if (lives <= 0){
+            gameState = 'gameOver';
+        }
+    }
+}
+
+
+
+
 function updateGame() {
     if (keyIsDown(LEFT_ARROW) && player.x > player.size/2) {
         player.x -= player.speed;
