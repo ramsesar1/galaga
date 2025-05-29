@@ -248,7 +248,7 @@ function updateBoss(){
         }
     }
     //colision del jefe con el jugador
-    if (collision(boxx, player)){
+    if (collision(boss, player)){
         lives -= 2;
         if (lives <= 0){
             gameState = 'gameOver';
@@ -257,6 +257,20 @@ function updateBoss(){
 }
 
 
+function bossSpecialAttack(){
+    //ataque espiral
+    for (let i = 0; i < 8; i++){
+        let angle = (i/8)*Math.PI * 2;
+        enemyBullets.push({
+            x:boss.x,
+            y:boss.y + boss.size/2,
+            size: 8,
+            speed: 3,
+            vx: Math.cos(angle)*3,
+            vy: Math.sin(angle)*3 + 2
+        });
+    }
+}
 
 
 function updateGame() {
@@ -413,9 +427,42 @@ function drawGame() {
             textSize(12);
             text(enemy.hp, enemy.x, enemy.y + 5);
         }
+
+        if (boss){
+            drawBoss();
+        }
     }
     
     drawUI();
+}
+
+function drawBoss(){
+    if (boss.isCharging){
+        fill(255,255,0,150);
+        noStroke();
+        ellipse(boss.x,boss.y,boss.size * 1.5);
+    }
+
+    //hurtbox del jefe
+    let healthRatio = boss.hp/boss.maxHp;
+    fill(255*(1-healthRatio),50,255*healthRatio);
+    stroke(255);
+    strokeWeight(3);
+
+    drawOctagon(boss.x, boss.y, boss.size/2);
+
+    //barra de vida
+    fill(255,0,0);
+    noStroke();
+    rect(boss.x-40,boss.y-boss.size/2-20,80,8);
+    fill(0,255,0);
+    rect(boss.x - 40,boss.y-boss.size/2-20, 80 * healthRatio, 8);
+
+    //vida en texto
+    fill(255);
+    textAlign(CENTER);
+    textSize(16);
+    text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + 10);
 }
 
 function drawUI() {
