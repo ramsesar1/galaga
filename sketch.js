@@ -43,6 +43,7 @@ function draw() {
 function createEnemies() {
     enemies = [];
     enemyBullets = [];
+    boss = null;
     
     if (currentLevel === 1) {
         // Nivel 1: enemigos normales
@@ -79,6 +80,55 @@ function createEnemies() {
                 lastShot: 0
             });
         }
+        //nivel 3
+    } else if (currentLevel === 3){
+        totalEnemies = 16;
+
+        for (let i = 0; i < totalEnemies; i++){
+            let isResistant = i < 2; 
+            let targetRow = Math.floor(i/4);
+            let targetCol = i % 4;
+
+            let targetX = 100 + targetCol * 150;
+            let targetY = 80 + targetRow * 60;
+
+            let appearSide = Math.random() < 0.5 ? 'left' : 'right';
+            let startX = appearSide === 'left' ? -50 : width + 50;
+
+            enemies.push({
+                x: startX,
+                y: Math.random() * 200 + 50,
+                targetX: targetX,
+                targetY: targetY,
+                size: isResistant ? 35 : 28,
+                speed: 2,
+                hp: isResistant ? 3 : 1,
+                maxHp: isResistant ? 3 : 1,
+                canShoot: true,
+                type: isResistant ? 'resistant' : 'galaga',
+                lastShot: 0,
+                state: 'entering', // 'entering', 'circling', 'formation', 'attacking'
+
+                //patron circular
+                circlePhase: Math.random() * Math.PI * 2,
+                circleRadius: 80 + Math.random()*40,
+                circleSpeed: 0.08,
+                circleCenterX: width/2,
+                circleCenterY: 200,
+
+                enterTime: millis() + i *500,
+                circleTime: 0,
+                formationTime: 0,
+
+                nextAttackTime: millis() + Math.random() * 5000 + 3000
+            });
+        }
+
+        setTimeout(()=>{
+            if (currentLevel === 3 && gameState === 'playing'){
+                createBoss();
+            }
+        },10000);
     }
 }
 
@@ -95,10 +145,13 @@ function createBoss(){
         lastShot: 0,
         state: 'entering',
 
+        //movimiento del jefe
+
         movePattern: 0,
         moveTimer: 0,
         targetX: width /2,
 
+        //ataque especial
         specialAttackTimer: 0,
         isCharging: false
     };
@@ -465,6 +518,18 @@ function drawBoss(){
     text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + 10);
 }
 
+function drawHexagon(x,y,radius){
+    beginShape();
+    for(let i = 0; i < 6; i++){
+        let angle = (i/6) * Math.PI * 2;
+        let px = x + Math.cos(angle)*radius;
+        let py = y + Math.sin(angle)*radius;
+        vertex(px,py);
+    }
+endShape(CLOSE);
+}
+
+
 function drawUI() {
     fill(255);
     textSize(20);
@@ -485,6 +550,19 @@ function drawUI() {
         text("Naranja: Dispara", width - 20, 30);
         fill(255, 100, 100);
         text("Rojo oscuro: Resistente", width - 20, 50);
+    }
+
+    if (currentLevel === 3){
+        textAlign(RIGHT);
+        textSize(14);
+        fill(100,255,150);
+        text("Verde: Galaga",width - 20,30);
+        fill(255,100,100);
+        text("Rojo: Resistente",width - 20,50);
+        if (boss){
+            fill(255,50,255);
+            text("ALERTA ALERTA ALERTA", width - 20, 70);
+        }
     }
 }
 
@@ -516,7 +594,8 @@ function drawLevelComplete() {
         text("Presiona R para reiniciar", width/2, height/2 + 60);
     } else {
         text("¡Felicidades! Completaste todos los niveles", width/2, height/2 + 30);
-        text("Presiona R para reiniciar", width/2, height/2 + 60);
+        text("Derrotaste al jefe final", width/2, height/2 + 60);
+        text("Presiona R para reiniciar", width/2, height/2 + 90);
     }
 }
 
