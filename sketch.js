@@ -25,6 +25,7 @@ function setup() {
     
     // enemigos del nivel actual
     createEnemies();
+    levelStartTime = millis();
 }
 
 function draw() {
@@ -40,6 +41,8 @@ function draw() {
     }
 }
 
+
+//enemigos por nivel
 function createEnemies() {
     enemies = [];
     enemyBullets = [];
@@ -57,7 +60,8 @@ function createEnemies() {
                 maxHp: 1,
                 zigzagOffset: 0,
                 canShoot: false,
-                type: 'normal'
+                type: 'normal',
+                state: 'descending'
             });
         }
     } else if (currentLevel === 2) {
@@ -77,12 +81,15 @@ function createEnemies() {
                 zigzagOffset: Math.random() * Math.PI * 2,
                 canShoot: canShoot,
                 type: isResistant ? 'resistant' : 'normal',
-                lastShot: 0
+                lastShot: 0,
+                state: 'descending'
             });
         }
         //nivel 3
     } else if (currentLevel === 3){
         totalEnemies = 16;
+
+        //enemigos con distintos estados y patrones
 
         for (let i = 0; i < totalEnemies; i++){
             let isResistant = i < 2; 
@@ -128,7 +135,7 @@ function createEnemies() {
             if (currentLevel === 3 && gameState === 'playing'){
                 createBoss();
             }
-        },10000);
+        },10000); //hace que el jefe aparezca en 10 segundos
     }
 }
 
@@ -351,8 +358,12 @@ function updateGame() {
                 enemies[j].hp--;
                 
                 if (enemies[j].hp <= 0) {
+                    let points = 10;
+                    if (enemies[j].type === 'resistant') points = 30;
+                    else if (enemies[j].type === 'galaga') points = 20;
+                    
+                    score += points;
                     enemies.splice(j, 1);
-                    score += enemies[j] && enemies[j].type === 'resistant' ? 30 : 10;
                     enemiesDestroyed++;
                 }
                 break;
