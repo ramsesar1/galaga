@@ -169,17 +169,16 @@ function updateGalagaEnemy(enemy){
 
     switch (enemy.state){
         case 'entering':
-            if (currentTime > enemy.enterTime){
-                //mueve enemigos al centro para comenzar circulo
+            if (currentTime > enemy.enterTime) {
                 let dx = enemy.circleCenterX - enemy.x;
                 let dy = enemy.circleCenterY - enemy.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist > 10){
-                    enemy.x += (dx/dist)*enemy.speed;
-                    enemy.y += (dy/dist)*enemy.speed;
+                
+                if (dist > 10) {
+                    enemy.x += (dx / dist) * enemy.speed;
+                    enemy.y += (dy / dist) * enemy.speed;
                 } else {
-                    enemy.state = 'circling';
+                    enemy.state = 'circling';           
                     enemy.circleTime = currentTime;
                 }
             }
@@ -190,8 +189,8 @@ function updateGalagaEnemy(enemy){
             enemy.circlePhase += enemy.circleSpeed;
             enemy.x = enemy.circleCenterX + Math.cos(enemy.circlePhase) * enemy.circleRadius;
             enemy.y = enemy.circleCenterY + Math.sin(enemy.circlePhase) * enemy.circleRadius * 0.6;
-            //manda a los enemigos a formacion despues de 2.4 segundos
-            if (currentTime * enemy.circleTime > 2000 + Math.random() * 2000){
+            //manda a los enemigos a formacion despues de 2a 4 segundos
+            if (currentTime - enemy.circleTime > 2000 + Math.random() * 2000){
                 enemy.state = 'formation';
                 enemy.formationTime = currentTime;
             }
@@ -208,31 +207,31 @@ function updateGalagaEnemy(enemy){
             } else {
                 enemy.state = 'inFormation';
             }
-            break;
+        break;
 
         case 'inFormation':
 
-        enemy.y += 0.5;
-        enemy.x += Math.sin(currentTime * 0.002 + enemy.circlePhase) * 0.5;
+            enemy.y += 0.5;
+            enemy.x += Math.sin(currentTime * 0.002 + enemy.circlePhase) * 0.5;
 
-        if (currentTime > enemy.nextAttackTime){
-            if (Math.random() < 0.3){
-                enemy.state = 'attacking';
-                enemy.attackStartTime = currentTime;
+            if (currentTime > enemy.nextAttackTime){
+                if (Math.random() < 0.3){
+                    enemy.state = 'attacking';
+                    enemy.attackStartTime = currentTime;
+                }
+                enemy.nextAttackTime = currentTime + Math.random()*8000 + 5000;
             }
-            enemy.nextAttackTime = currentTime + Math.random()*8000 + 5000;
-        }
-        //hace que disparen regularmente
-        if (enemy.canShoot && currentTime - enemy.lastShot > 1500 + Math.random() * 1000) {
-            enemyBullets.push({
-                x: enemy.x,
-                y: enemy.y + enemy.size/2,
-                size: 5,
-                speed: 4
-            });
-            enemy.lastShot = currentTime;
-            }
-            break;
+            //hace que disparen regularmente
+            if (enemy.canShoot && currentTime - enemy.lastShot > 1500 + Math.random() * 1000) {
+                enemyBullets.push({
+                    x: enemy.x,
+                    y: enemy.y + enemy.size/2,
+                    size: 5,
+                    speed: 4
+                });
+                enemy.lastShot = currentTime;
+                }
+        break;
         
         case 'attacking':
             let playerDx = player.x - enemy.x;
@@ -247,7 +246,7 @@ function updateGalagaEnemy(enemy){
             if (currentTime - enemy.attackStartTime > 3000){
                 enemy.state = 'formation';
             }
-            break;
+        break;
     }    
 }
 
@@ -420,8 +419,9 @@ function updateGame() {
     }
 }
 
+//actualiza enemigos
 function updateEnemies(){    
-    // Actualizar enemigos
+    
     for (let i = enemies.length - 1; i >= 0; i--) {
         let enemy = enemies[i];
         
@@ -446,6 +446,9 @@ function updateEnemies(){
                     enemy.lastShot = millis();
                 }
             }
+        } else if (currentLevel === 3){
+            //patrones de movimiento en nivel 3
+            updateGalagaEnemy(enemy);
         }
         
         // Colision enemigo-jugador
@@ -467,12 +470,9 @@ function updateEnemies(){
             }
         }
     }
-    
-    // verificar nivel completo
-    if (enemies.length === 0) {
-        gameState = 'levelComplete';
-    }
 }
+
+
 
 function drawGame() {
     // Dibujar jugador
@@ -491,70 +491,87 @@ function drawGame() {
     // Dibujar balas enemigas
     fill(255, 100, 255);
     for (let bullet of enemyBullets) {
-        rect(bullet.x - bullet.size/2, bullet.y - bullet.size/2, bullet.size, bullet.size);
+        ellipse(bullet.x, bullet.y, bullet.size);
     }
     
     // Dibujar enemigos
     for (let enemy of enemies) {
-        if (enemy.type === 'resistant') {
-            // enemigo resistente con vida extra
-            let healthRatio = enemy.hp / enemy.maxHp;
-            fill(255, 100 * healthRatio, 100 * healthRatio);
-        } else if (enemy.canShoot) {
-            // enemigo que dispara - color naranja
-            fill(255, 150, 50);
-        } else {
-            // Enemigo normal - rojo
-            fill(255, 100, 100);
-        }
-        
-        stroke(255);
-        strokeWeight(1);
-        rect(enemy.x - enemy.size/2, enemy.y - enemy.size/2, enemy.size, enemy.size);
-        
-        // vida para enemigos resistentes
-        if (enemy.type === 'resistant') {
-            fill(255);
-            textAlign(CENTER);
-            textSize(12);
-            text(enemy.hp, enemy.x, enemy.y + 5);
-        }
-
-        if (boss){
-            drawBoss();
-        }
+        drawEnemy(enemy);
     }
     
+    // Dibujar jefe
+    if (boss) {
+        drawBoss();
+    }
+    
+    // Dibujar UI
     drawUI();
+}
+
+function drawEnemy(enemy) {
+    // colo indica resistencia
+    if (enemy.type === 'resistant') {
+        let healthRatio = enemy.hp / enemy.maxHp;
+        fill(255, 100 * healthRatio, 100 * healthRatio);
+    } else if (enemy.type === 'galaga') {
+        // color enemigos de nivel 3
+        if (enemy.state === 'attacking') {
+            fill(255, 255, 100); // Amarillo cuando ataca
+        } else {
+            fill(100, 255, 150); 
+        }
+    } else if (enemy.canShoot) {
+        fill(255, 150, 50);
+    } else {
+        fill(255, 100, 100);
+    }
+    
+    stroke(255);
+    strokeWeight(1);
+    
+    // enemigos de nivel 3 hexagonos
+    if (currentLevel === 3) {
+        drawHexagon(enemy.x, enemy.y, enemy.size/2);
+    } else {
+        rect(enemy.x - enemy.size/2, enemy.y - enemy.size/2, enemy.size, enemy.size);
+    }
+    
+    // Indicador de vida para enemigos resistentes
+    if (enemy.type === 'resistant') {
+        fill(255);
+        textAlign(CENTER);
+        textSize(12);
+        text(enemy.hp, enemy.x, enemy.y + 5);
+    }
 }
 
 function drawBoss(){
     if (boss.isCharging){
-        fill(255,255,0,150);
+            fill(255,255,0,150);
+            noStroke();
+            ellipse(boss.x,boss.y,boss.size * 1.5);
+        }
+
+        //hurtbox del jefe
+        let healthRatio = boss.hp/boss.maxHp;
+        fill(255*(1-healthRatio),50,255*healthRatio);
+        stroke(255);
+        strokeWeight(3);
+
+        drawOctagon(boss.x, boss.y, boss.size/2);
+
+        //barra de vida
+        fill(255,0,0);
         noStroke();
-        ellipse(boss.x,boss.y,boss.size * 1.5);
-    }
+        rect(boss.x-40,boss.y-boss.size/2-20,80,8);
+        fill(0,255,0);
+        rect(boss.x - 40,boss.y-boss.size/2-20, 80 * healthRatio, 8);
 
-    //hurtbox del jefe
-    let healthRatio = boss.hp/boss.maxHp;
-    fill(255*(1-healthRatio),50,255*healthRatio);
-    stroke(255);
-    strokeWeight(3);
-
-    drawOctagon(boss.x, boss.y, boss.size/2);
-
-    //barra de vida
-    fill(255,0,0);
-    noStroke();
-    rect(boss.x-40,boss.y-boss.size/2-20,80,8);
-    fill(0,255,0);
-    rect(boss.x - 40,boss.y-boss.size/2-20, 80 * healthRatio, 8);
-
-    //vida en texto
-    fill(255);
-    textAlign(CENTER);
-    textSize(16);
-    text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + 10);
+        //vida en texto
+        fill(255);
+        textAlign(CENTER);
+        textSize(16);
+        text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + 10);
 }
 
 function drawHexagon(x,y,radius){
@@ -568,6 +585,16 @@ function drawHexagon(x,y,radius){
 endShape(CLOSE);
 }
 
+function drawOctagon(x, y, radius) {
+    beginShape();
+    for (let i = 0; i < 8; i++) {
+        let angle = (i / 8) * Math.PI * 2;
+        let px = x + Math.cos(angle) * radius;
+        let py = y + Math.sin(angle) * radius;
+        vertex(px, py);
+    }
+    endShape(CLOSE);
+}
 
 function drawUI() {
     fill(255);
@@ -628,7 +655,7 @@ function drawLevelComplete() {
     textSize(24);
     text(`Score: ${score}`, width/2, height/2);
     
-    if (currentLevel < 2) {
+    if (currentLevel < 3) {
         text("Presiona N para siguiente nivel", width/2, height/2 + 30);
         text("Presiona R para reiniciar", width/2, height/2 + 60);
     } else {
@@ -657,7 +684,7 @@ function keyPressed() {
     }
     
     if (key === 'n' || key === 'N') {
-        if (gameState === 'levelComplete' && currentLevel < 2) {
+        if (gameState === 'levelComplete' && currentLevel < 3) {
             // siguiente nivel
             currentLevel++;
             gameState = 'playing';
@@ -666,6 +693,7 @@ function keyPressed() {
             createEnemies();
             player.x = width / 2;
             player.y = height - 50;
+            levelStartTime = millis();
         }
     }
     
@@ -681,5 +709,6 @@ function keyPressed() {
         createEnemies();
         player.x = width / 2;
         player.y = height - 50;
+        levelStartTime = millis();
     }
 }
