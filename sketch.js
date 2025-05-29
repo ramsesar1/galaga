@@ -87,12 +87,12 @@ function createEnemies() {
         }
         //nivel 3
     } else if (currentLevel === 3){
-        totalEnemies = 16;
+        totalEnemies = 40;
 
         //enemigos con distintos estados y patrones
 
         for (let i = 0; i < totalEnemies; i++){
-            let isResistant = i < 2; 
+            let isResistant = i < 15; 
             let targetRow = Math.floor(i/4);
             let targetCol = i % 4;
 
@@ -145,8 +145,8 @@ function createBoss(){
         y: -100,
         size: 80,
         speed: 3,
-        hp: 7,
-        maxHp: 7,
+        hp: 50,
+        maxHp: 50,
         canShoot: true,
         type: 'boss',
         lastShot: 0,
@@ -368,6 +368,8 @@ function updateGame() {
                 break;
             }
         }
+
+        if (i >= bullets.length) continue;
 
         //colision de balas con jefe
         if (boss && collision(bullets[i],boss)){
