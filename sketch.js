@@ -369,6 +369,21 @@ function updateGame() {
                 break;
             }
         }
+
+        //colision de balas con jefe
+        if (boss && collision(bullets[i],boss)){
+            bullets.splice(i,1);
+            boss.hp--;
+
+            if (boss.hp <= 0){
+                score += 100;
+                boss = null;
+
+                if (enemies.length === 0){
+                    gameState = 'levelComplete';
+                }
+            }
+        }
     }
     
     // Actualizar balas enemigas (solo nivel 2)
@@ -392,7 +407,20 @@ function updateGame() {
             }
         }
     }
-    
+
+
+    updateEnemies();
+
+    if (boss){
+        updateBoss();
+    }
+
+    if (enemies.length === 0 && !boss){
+        gameState = 'levelComplete';
+    }
+}
+
+function updateEnemies(){    
     // Actualizar enemigos
     for (let i = enemies.length - 1; i >= 0; i--) {
         let enemy = enemies[i];
