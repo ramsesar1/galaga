@@ -10,6 +10,10 @@ let currentLevel = 1;
 let lastEnemyShot = 0;
 let boss = null;
 let levelStartTime = 0;
+let shootSound;
+let enemyShootSound;
+let bossShootSound;
+let backgroundMusic;
 
 let stars = [];
 let titleColor = 0;
@@ -49,6 +53,14 @@ function setup() {
     // enemigos del nivel actual
     createEnemies();
     levelStartTime = millis();
+    shootSound = createAudio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAF');
+    enemyShootSound = createAudio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAF');
+    bossShootSound = createAudio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMZBTOH0fPTgjAF');
+
+    // Música de fondo
+    backgroundMusic = createAudio('Galaga_Medley_(Ultimate).mp3');
+    backgroundMusic.loop();
+    backgroundMusic.volume(0.1);
 }
 
 function draw() {
@@ -122,7 +134,7 @@ function createEnemies() {
         totalEnemies = 20;
         for (let i = 0; i < totalEnemies; i++) {
             let canShoot = Math.random() < 0.4; // 40% de enemigos disparan
-            let isResistant = i < 5; 
+            let isResistant = i < 3; 
             
             enemies.push({
                 x: 50 + (i % 5) * 140,
@@ -283,6 +295,7 @@ function updateGalagaEnemy(enemy){
                     speed: 4
                 });
                 enemy.lastShot = currentTime;
+                enemyShootSound.play();
                 }
         break;
         
@@ -342,6 +355,7 @@ function updateBoss(){
                         vy: 5
                     });
                 }
+                bossShootSound.play();
                 boss.lastShot = currentTime;
             }
 
@@ -381,6 +395,8 @@ function bossSpecialAttack(){
             vy: Math.sin(angle)*3 + 2
         });
     }
+    bossShootSound.play();
+
 }
 
 function updateGame() {
@@ -839,6 +855,9 @@ function drawGameOver() {
     fill(...colors.yellow);
     textSize(18);
     text("Presiona R para reiniciar", width/2, height/2 + 70);
+
+    backgroundMusic.pause();
+
 }
 
 function drawLevelComplete() {
@@ -883,7 +902,10 @@ function keyPressed() {
            y: player.y - player.size/2,
            size: 5,
            speed: 8
+           
        });
+       shootSound.play();
+
    }
    
    if (key === 'n' || key === 'N') {
