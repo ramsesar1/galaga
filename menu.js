@@ -4,7 +4,8 @@ const menuSketch = (p) => {
     let stars = [];
     let titleColor = 0;
     let blinkTimer = 0;
-    
+    let selectSound;
+
     const colors = {
         yellow: [255, 255, 0],
         cyan: [0, 255, 255],
@@ -12,10 +13,14 @@ const menuSketch = (p) => {
         red: [255, 100, 100],
         blue: [100, 150, 255]
     };
+
+    p.preload = function() {
+        selectSound = p.loadSound('menu_select.mp3');
+    };
     
     p.setup = function() {
+        p.userStartAudio();
         p.createCanvas(800, 600);
-        
         for (let i = 0; i < 100; i++) {
             stars.push({
                 x: p.random(p.width),
@@ -24,6 +29,8 @@ const menuSketch = (p) => {
                 speed: p.random(0.5, 2)
             });
         }
+
+        
     };
     
     p.draw = function() {
@@ -132,19 +139,26 @@ const menuSketch = (p) => {
         switch(p.keyCode) {
             case p.UP_ARROW:
                 selectedOption = (selectedOption - 1 + maxOptions) % maxOptions;
+                if (selectSound && selectSound.isLoaded()) selectSound.play();
                 break;
-                
+                    
             case p.DOWN_ARROW:
                 selectedOption = (selectedOption + 1) % maxOptions;
+                if (selectSound && selectSound.isLoaded()) selectSound.play();
                 break;
-                
+                    
             case p.ENTER:
                 startSelectedGame();
                 break;
         }
     };
     
+    
     function startSelectedGame() {
+        if (selectSound && selectSound.isLoaded()) {
+            selectSound.play();
+        }
+
         if (selectedOption === 0) {
             startGame('single');
         } else if (selectedOption === 1) {

@@ -22,6 +22,9 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.sound.min.js"></script>
+
 </head>
 <body>
     <script>
@@ -57,7 +60,6 @@
     }
     
     function loadScript(src, callback) {
-        // Remover script anterior si existe
         const existingScript = document.querySelector(`script[src="${src}"]`);
         if (existingScript) {
             existingScript.remove();
@@ -69,7 +71,6 @@
         document.head.appendChild(script);
     }
     
-    // Iniciar con menú
     window.addEventListener('load', () => {
         loadScript('menu.js', () => {
             if (typeof menuSketch !== 'undefined') {

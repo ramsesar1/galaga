@@ -14,6 +14,8 @@ let shootSound;
 let enemyShootSound;
 let bossShootSound;
 let backgroundMusic;
+let musicStarted = false;
+
 
 let stars = [];
 let titleColor = 0;
@@ -59,8 +61,9 @@ function setup() {
 
     // Música de fondo
     backgroundMusic = createAudio('Galaga_Medley_(Ultimate).mp3');
-    backgroundMusic.loop();
     backgroundMusic.volume(0.1);
+
+    
 }
 
 function draw() {
@@ -895,51 +898,53 @@ function collision(obj1, obj2) {
            obj1.y + obj1.size/2 > obj2.y - obj2.size/2);
 }
 
+
 function keyPressed() {
-   if (key === ' ' && gameState === 'playing') {
-       bullets.push({
-           x: player.x,
-           y: player.y - player.size/2,
-           size: 5,
-           speed: 8
-           
-       });
-       shootSound.play();
+    if (!musicStarted) {
+        backgroundMusic.loop();
+        musicStarted = true;
+    }
 
-   }
-   
-   if (key === 'n' || key === 'N') {
-       if (gameState === 'levelComplete' && currentLevel < 3) {
-           // siguiente nivel
-           currentLevel++;
-           gameState = 'playing';
-           bullets = [];
-           enemyBullets = [];
-           createEnemies();
-           player.x = width / 2;
-           player.y = height - 50;
-           levelStartTime = millis();
-       }
-   }
-   
-   if (key === 'r' || key === 'R') {
-       // reinicia juego
-       lives = 3;
-       score = 0;
-       enemiesDestroyed = 0;
-       currentLevel = 1;
-       gameState = 'playing';
-       bullets = [];
-       enemyBullets = [];
-       createEnemies();
-       player.x = width / 2;
-       player.y = height - 50;
-       levelStartTime = millis();
-   }
+    if (key === ' ' && gameState === 'playing') {
+        bullets.push({
+            x: player.x,
+            y: player.y - player.size / 2,
+            size: 5,
+            speed: 8
+        });
+        shootSound.play();
+    }
 
-   if (keyCode === ESCAPE) {
-       returnToMenu();
-   }
+    if (key === 'n' || key === 'N') {
+        if (gameState === 'levelComplete' && currentLevel < 3) {
+            currentLevel++;
+            gameState = 'playing';
+            bullets = [];
+            enemyBullets = [];
+            createEnemies();
+            player.x = width / 2;
+            player.y = height - 50;
+            levelStartTime = millis();
+        }
+    }
+
+    if (key === 'r' || key === 'R') {
+        lives = 3;
+        score = 0;
+        enemiesDestroyed = 0;
+        currentLevel = 1;
+        gameState = 'playing';
+        bullets = [];
+        enemyBullets = [];
+        createEnemies();
+        player.x = width / 2;
+        player.y = height - 50;
+        levelStartTime = millis();
+    }
+
+    if (keyCode === ESCAPE) {
+        returnToMenu();
+    }
 }
 
 function returnToMenu() {
