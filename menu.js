@@ -162,7 +162,7 @@ const menuSketch = (p) => {
         if (selectedOption === 0) {
             startGame('single');
         } else if (selectedOption === 1) {
-            startGame('multiplayer');
+            startGame('connection');
         }
     }
 };

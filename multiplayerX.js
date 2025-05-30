@@ -1,10 +1,8 @@
-let player1;
-let player2;
-let currentPlayer; 
+let player;
 let bullets = [];
 let enemies = [];
 let enemyBullets = [];
-
+let lives = 3;
 let score = 0;
 let enemiesDestroyed = 0;
 let totalEnemies = 20;
@@ -128,25 +126,13 @@ function setup() {
         });
     }
 
-    // jugadorES
-    player1 = {
-        x: width / 3,
+    // jugador
+    player = {
+        x: width / 2,
         y: height - 50,
         size: 30,
-        speed: 5,
-        lives: 3
+        speed: 5
     };
-    
-    player2 = {
-        x: (width * 2) / 3,
-        y: height - 50,
-        size: 30,
-        speed: 5,
-        lives: 3
-    };
-
-    currentPlayer = isHost ? player1 : player2;
-    player = currentPlayer;
     
     // enemigos del nivel actual
     createEnemies();
@@ -473,15 +459,11 @@ function updateBoss(){
         }
     }
     //colision del jefe con el jugador
-    if (collision(boss, player1) && player1.lives > 0){
-        player1.lives -= 2;
-    }
-    if (collision(boss, player2) && player2.lives > 0){
-        player2.lives -= 2;
-    }
-    
-    if (player1.lives <= 0 && player2.lives <= 0){
-        gameState = 'gameOver';
+    if (collision(boss, player)){
+        lives -= 2;
+        if (lives <= 0){
+            gameState = 'gameOver';
+        }
     }
 }
 
@@ -503,23 +485,11 @@ function bossSpecialAttack(){
 }
 
 function updateGame() {
-    // Movimiento para ambos jugadores
-    if (isHost) {
-        // Player 1 (HOST) - flechas
-        if (keyIsDown(LEFT_ARROW) && player1.x > player1.size/2) {
-            player1.x -= player1.speed;
-        }
-        if (keyIsDown(RIGHT_ARROW) && player1.x < width - player1.size/2) {
-            player1.x += player1.speed;
-        }
-    } else {
-        // Player 2 (CLIENTE) - A/D
-        if ((keyIsDown(65) || keyIsDown(68)) && player2.x > player2.size/2) { // A
-            player2.x -= player2.speed;
-        }
-        if ((keyIsDown(68)) && player2.x < width - player2.size/2) { // D
-            player2.x += player2.speed;
-        }
+    if (keyIsDown(LEFT_ARROW) && player.x > player.size/2) {
+        player.x -= player.speed;
+    }
+    if (keyIsDown(RIGHT_ARROW) && player.x < width - player.size/2) {
+        player.x += player.speed;
     }
     
     // Actualizar balas del jugador
@@ -580,17 +550,12 @@ function updateGame() {
             }
             
             // Colision bala enemiga-jugador
-            if (collision(enemyBullets[i], player1) && player1.lives > 0) {
+            if (collision(enemyBullets[i], player)) {
                 enemyBullets.splice(i, 1);
-                player1.lives--;
-            }
-            else if (collision(enemyBullets[i], player2) && player2.lives > 0) {
-                enemyBullets.splice(i, 1);
-                player2.lives--;
-            }
-
-            if (player1.lives <= 0 && player2.lives <= 0) {
-                gameState = 'gameOver';
+                lives--;
+                if (lives <= 0) {
+                    gameState = 'gameOver';
+                }
             }
         }
     }
@@ -643,19 +608,10 @@ function updateEnemies(){
         }
         
         // Colision enemigo-jugador
-        if (collision(enemy, player1) && player1.lives > 0) {
+        if (collision(enemy, player)) {
             enemies.splice(i, 1);
-            player1.lives--;
-            if (player1.lives <= 0 && player2.lives <= 0) {
-                gameState = 'gameOver';
-            }
-            continue;
-        }
-        // Colisión con player2
-        if (collision(enemy, player2) && player2.lives > 0) {
-            enemies.splice(i, 1);
-            player2.lives--;
-            if (player1.lives <= 0 && player2.lives <= 0) {
+            lives--;
+            if (lives <= 0) {
                 gameState = 'gameOver';
             }
             continue;
@@ -664,14 +620,8 @@ function updateEnemies(){
         // Enemigo llega al fondo
         if (enemy.y > height) {
             enemies.splice(i, 1);
-            // Quitar vida al jugador más cercano o dividir el daño
-            if (player1.lives > 0) {
-                player1.lives--;
-            } else if (player2.lives > 0) {
-                player2.lives--;
-            }
-            
-            if (player1.lives <= 0 && player2.lives <= 0) {
+            lives--;
+            if (lives <= 0) {
                 gameState = 'gameOver';
             }
         }
@@ -679,7 +629,7 @@ function updateEnemies(){
 }
 
 function drawGame() {
-    drawPlayers();
+    drawPlayer();
     
     drawPlayerBullets();
     
@@ -701,16 +651,7 @@ function drawGame() {
     drawUI();
 }
 
-function drawPlayers() {
-    if (player1.lives > 0) {
-        drawPlayerAt(player1.x, player1.y);
-    }
-    if (player2.lives > 0) {
-        drawPlayerAt(player2.x, player2.y);
-    }
-}
-
-function drawPlayerAt() {
+function drawPlayer() {
     push();
     translate(player.x, player.y);
     
