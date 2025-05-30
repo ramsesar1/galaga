@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Pong en p5.js</title>
+    <title>Galaga</title>
     <style>
         body {
             margin: 0;
@@ -12,17 +12,71 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #222;
+            background-color: #000;
             overflow: hidden;
+            font-family: 'Courier New', monospace;
         }
         canvas {
             display: block;
-            border: 2px solid #444;
+            border: 2px solid #333;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-    <script src="sketch.js"></script>
 </head>
 <body>
+    <script>
+    let gameState = 'MENU';
+    let currentSketch = null;
+    
+    function startGame(mode) {
+    if (currentSketch) {
+        currentSketch.remove();
+    }
+    
+    gameState = 'PLAYING';
+    
+    if (mode === 'single') {
+        // Redireccionar a singleplayer.html
+        window.location.href = 'singleplayer.html';
+    } else if (mode === 'multiplayer') {
+        // Redireccionar a multiplayer.html
+        window.location.href = 'multiplayer.html';
+    }
+}
+    
+    function backToMenu() {
+        if (currentSketch) {
+            currentSketch.remove();
+            currentSketch = null;
+        }
+        loadScript('menu.js', () => {
+            if (typeof menuSketch !== 'undefined') {
+                currentSketch = new p5(menuSketch);
+            }
+        });
+    }
+    
+    function loadScript(src, callback) {
+        // Remover script anterior si existe
+        const existingScript = document.querySelector(`script[src="${src}"]`);
+        if (existingScript) {
+            existingScript.remove();
+        }
+        
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = callback;
+        document.head.appendChild(script);
+    }
+    
+    // Iniciar con menú
+    window.addEventListener('load', () => {
+        loadScript('menu.js', () => {
+            if (typeof menuSketch !== 'undefined') {
+                currentSketch = new p5(menuSketch);
+            }
+        });
+    });
+    </script>
 </body>
 </html>

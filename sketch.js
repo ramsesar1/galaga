@@ -4,17 +4,40 @@ let enemies = [];
 let enemyBullets = [];
 let lives = 3;
 let score = 0;
-let gameState = 'playing'; // 'playing', 'gameOver', 'levelComplete'
 let enemiesDestroyed = 0;
-let totalEnemies = 10;
+let totalEnemies = 20;
 let currentLevel = 1;
 let lastEnemyShot = 0;
 let boss = null;
 let levelStartTime = 0;
 
+let stars = [];
+let titleColor = 0;
+
+const colors = {
+    yellow: [255, 255, 0],
+    cyan: [0, 255, 255],
+    white: [255, 255, 255],
+    red: [255, 100, 100],
+    blue: [100, 150, 255],
+    green: [100, 255, 150]
+};
+
 function setup() {
     createCanvas(800, 900);
-    
+    gameState = 'playing';
+
+    //  estrellas para el fondo
+    for (let i = 0; i < 150; i++) {
+        stars.push({
+            x: random(width),
+            y: random(height),
+            size: random(1, 4),
+            speed: random(0.3, 1.5),
+            brightness: random(100, 255)
+        });
+    }
+
     // jugador
     player = {
         x: width / 2,
@@ -29,7 +52,8 @@ function setup() {
 }
 
 function draw() {
-    background(20, 20, 40);
+    // Fondo espacial con degradado
+    drawSpaceBackground();
     
     if (gameState === 'playing') {
         updateGame();
@@ -41,6 +65,35 @@ function draw() {
     }
 }
 
+function drawSpaceBackground() {
+    // Degradado de fondo
+    for (let i = 0; i <= height; i++) {
+        let inter = map(i, 0, height, 0, 1);
+        let c = lerpColor(color(10, 10, 30), color(0, 0, 15), inter);
+        stroke(c);
+        line(0, i, width, i);
+    }
+    
+    // Dibujar estrellas en movimiento
+    fill(255);
+    noStroke();
+    
+    for (let star of stars) {
+        fill(255, star.brightness);
+        circle(star.x, star.y, star.size);
+        star.y += star.speed;
+        
+        // Algunas estrellas parpadean
+        if (random() < 0.01) {
+            star.brightness = random(100, 255);
+        }
+        
+        if (star.y > height) {
+            star.y = 0;
+            star.x = random(width);
+        }
+    }
+}
 
 //enemigos por nivel
 function createEnemies() {
@@ -66,10 +119,10 @@ function createEnemies() {
         }
     } else if (currentLevel === 2) {
         // Nivel 2: enemigos con zigzag y algunos que disparan
-        totalEnemies = 12;
+        totalEnemies = 20;
         for (let i = 0; i < totalEnemies; i++) {
             let canShoot = Math.random() < 0.4; // 40% de enemigos disparan
-            let isResistant = i === 5; // enemigo resistente en posicion
+            let isResistant = i < 5; 
             
             enemies.push({
                 x: 50 + (i % 5) * 140,
@@ -315,7 +368,6 @@ function updateBoss(){
     }
 }
 
-
 function bossSpecialAttack(){
     //ataque espiral
     for (let i = 0; i < 8; i++){
@@ -330,7 +382,6 @@ function bossSpecialAttack(){
         });
     }
 }
-
 
 function updateGame() {
     if (keyIsDown(LEFT_ARROW) && player.x > player.size/2) {
@@ -350,7 +401,6 @@ function updateGame() {
             continue;
         }
         
-        // Colision bala-enemigo
         for (let j = enemies.length - 1; j >= 0; j--) {
             if (collision(bullets[i], enemies[j])) {
                 bullets.splice(i, 1);
@@ -408,7 +458,6 @@ function updateGame() {
             }
         }
     }
-
 
     updateEnemies();
 
@@ -474,34 +523,18 @@ function updateEnemies(){
     }
 }
 
-
-
 function drawGame() {
-    // Dibujar jugador
-    fill(100, 150, 255);
-    stroke(255);
-    strokeWeight(2);
-    rect(player.x - player.size/2, player.y - player.size/2, player.size, player.size);
+    drawPlayer();
     
-    // Dibujar balas del jugador
-    fill(255, 255, 100);
-    noStroke();
-    for (let bullet of bullets) {
-        rect(bullet.x - bullet.size/2, bullet.y - bullet.size/2, bullet.size, bullet.size);
-    }
+    drawPlayerBullets();
     
-    // Dibujar balas enemigas
-    fill(255, 100, 255);
-    for (let bullet of enemyBullets) {
-        ellipse(bullet.x, bullet.y, bullet.size);
-    }
+    drawEnemyBullets();
     
-    // Dibujar enemigos
+    // dibuja enemigos
     for (let enemy of enemies) {
         drawEnemy(enemy);
     }
     
-    // Dibujar jefe
     if (boss) {
         drawBoss();
     }
@@ -510,81 +543,224 @@ function drawGame() {
     drawUI();
 }
 
+function drawPlayer() {
+    push();
+    translate(player.x, player.y);
+    
+    // Cuerpo principal de la nave
+    fill(...colors.blue);
+    stroke(...colors.cyan);
+    strokeWeight(2);
+    
+    // forma de nave espacial
+    beginShape();
+    vertex(0, -player.size/2);          
+    vertex(-player.size/3, player.size/4); 
+    vertex(-player.size/2, player.size/2);
+    vertex(player.size/2, player.size/2);  
+    vertex(player.size/3, player.size/4); 
+    endShape(CLOSE);
+    
+    fill(...colors.cyan);
+    noStroke();
+    ellipse(0, 0, 8, 8); //cabinita
+    
+    fill(...colors.yellow);
+    rect(-player.size/4, player.size/3, 4, 8);
+    rect(player.size/4 - 4, player.size/3, 4, 8);
+    
+    pop();
+}
+
+function drawPlayerBullets() {
+    for (let bullet of bullets) {
+        push();
+        translate(bullet.x, bullet.y);
+        
+        fill(...colors.yellow, 150);
+        noStroke();
+        ellipse(0, 0, bullet.size * 2, bullet.size * 4);
+        
+        fill(...colors.yellow);
+        ellipse(0, 0, bullet.size, bullet.size * 2);
+        
+        pop();
+    }
+}
+
+function drawEnemyBullets() {
+    for (let bullet of enemyBullets) {
+        push();
+        translate(bullet.x, bullet.y);
+        
+        fill(255, 100, 255, 100);
+        noStroke();
+        ellipse(0, 0, bullet.size * 2);
+        
+        fill(255, 100, 255);
+        ellipse(0, 0, bullet.size);
+        
+        pop();
+    }
+}
+
 function drawEnemy(enemy) {
-    // colo indica resistencia
+    push();
+    translate(enemy.x, enemy.y);
+    
+    // color en base del tipo de enemigo
     if (enemy.type === 'resistant') {
         let healthRatio = enemy.hp / enemy.maxHp;
         fill(255, 100 * healthRatio, 100 * healthRatio);
+        stroke(255, 50, 50);
     } else if (enemy.type === 'galaga') {
-        // color enemigos de nivel 3
         if (enemy.state === 'attacking') {
-            fill(255, 255, 100); // Amarillo cuando ataca
+            fill(...colors.yellow);
+            stroke(...colors.red);
         } else {
-            fill(100, 255, 150); 
+            fill(...colors.green);
+            stroke(...colors.cyan);
         }
     } else if (enemy.canShoot) {
         fill(255, 150, 50);
+        stroke(255, 200, 100);
     } else {
-        fill(255, 100, 100);
+        fill(...colors.red);
+        stroke(255, 150, 150);
     }
     
-    stroke(255);
-    strokeWeight(1);
+    strokeWeight(2);
     
-    // enemigos de nivel 3 hexagonos
     if (currentLevel === 3) {
-        drawHexagon(enemy.x, enemy.y, enemy.size/2);
+        drawSpaceship(enemy.size/2, enemy.type === 'galaga');
+    } else if (currentLevel === 2) {
+        drawRoboticEnemy(enemy.size/2);
     } else {
-        rect(enemy.x - enemy.size/2, enemy.y - enemy.size/2, enemy.size, enemy.size);
+        drawBasicEnemy(enemy.size/2);
     }
     
-    // Indicador de vida para enemigos resistentes
-    if (enemy.type === 'resistant') {
+    // indicador de vida de enemigos
+    if (enemy.type === 'resistant' && enemy.hp > 1) {
         fill(255);
+        noStroke();
         textAlign(CENTER);
-        textSize(12);
-        text(enemy.hp, enemy.x, enemy.y + 5);
+        textSize(10);
+        text(enemy.hp, 0, enemy.size/2 + 15);
+    }
+    
+    pop();
+}
+
+function drawBasicEnemy(size) {
+    beginShape();
+    vertex(0, -size);
+    vertex(size, 0);
+    vertex(0, size);
+    vertex(-size, 0);
+    endShape(CLOSE);
+    
+    fill(255, 150);
+    noStroke();
+    ellipse(0, 0, size/2);
+}
+
+//enemigo cuadrado que dispara
+function drawRoboticEnemy(size) {
+    rect(-size, -size, size*2, size*2);
+    
+    fill(255);
+    noStroke();
+    rect(-size/2, -size/2, size, size/4);
+    rect(-size/4, -size/3, size/2, size/6);
+    
+    fill(255, 0, 0);
+    ellipse(-size/3, -size/4, 4);
+    ellipse(size/3, -size/4, 4);
+}
+
+function drawSpaceship(size, isGalaga) {
+    if (isGalaga) {
+        beginShape();
+        vertex(0, -size);
+        vertex(size*0.8, -size*0.3);
+        vertex(size, size*0.5);
+        vertex(size*0.6, size);
+        vertex(-size*0.6, size);
+        vertex(-size, size*0.5);
+        vertex(-size*0.8, -size*0.3);
+        endShape(CLOSE);
+        
+        fill(255, 200);
+        noStroke();
+        ellipse(0, -size*0.2, size*0.6, size*0.3);
+    } else {
+        drawHexagon(0, 0, size);
     }
 }
 
 function drawBoss(){
+    push();
+    translate(boss.x, boss.y);
+    
     if (boss.isCharging){
-            fill(255,255,0,150);
-            noStroke();
-            ellipse(boss.x,boss.y,boss.size * 1.5);
-        }
-
-        //hurtbox del jefe
-        let healthRatio = boss.hp/boss.maxHp;
-        fill(255*(1-healthRatio),50,255*healthRatio);
-        stroke(255);
-        strokeWeight(3);
-
-        drawOctagon(boss.x, boss.y, boss.size/2);
-
-        //barra de vida
-        fill(255,0,0);
+        fill(255, 255, 0, 150);
         noStroke();
-        rect(boss.x-40,boss.y-boss.size/2-20,80,8);
-        fill(0,255,0);
-        rect(boss.x - 40,boss.y-boss.size/2-20, 80 * healthRatio, 8);
+        ellipse(0, 0, boss.size * 1.5);
+    }
 
-        //vida en texto
-        fill(255);
-        textAlign(CENTER);
-        textSize(16);
-        text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + 10);
+    // cuerpo del jefe
+    let healthRatio = boss.hp/boss.maxHp;
+    fill(255*(1-healthRatio), 50, 255*healthRatio);
+    stroke(255);
+    strokeWeight(3);
+
+    drawOctagon(0, 0, boss.size/2);
+    
+    fill(255, 100);
+    noStroke();
+    drawOctagon(0, 0, boss.size/3);
+    
+    // nucleo
+    fill(255, 0, 0, 150 + sin(millis() * 0.01) * 100);
+    ellipse(0, 0, boss.size/4);
+    
+    pop();
+
+    // Barra de vida
+    let barWidth = 80;
+    let barHeight = 8;
+    let barX = boss.x - barWidth/2;
+    let barY = boss.y - boss.size/2 - 20;
+    
+    fill(255, 0, 0);
+    noStroke();
+    rect(barX, barY, barWidth, barHeight);
+    fill(0, 255, 0);
+    rect(barX, barY, barWidth * healthRatio, barHeight);
+    
+    // Borde de la barra
+    stroke(255);
+    strokeWeight(1);
+    noFill();
+    rect(barX, barY, barWidth, barHeight);
+
+    // Texto de vida
+    fill(255);
+    noStroke();
+    textAlign(CENTER);
+    textSize(12);
+    text(`JEFE: ${boss.hp}/${boss.maxHp}`, boss.x, boss.y + boss.size/2 + 20);
 }
 
-function drawHexagon(x,y,radius){
+function drawHexagon(x, y, radius){
     beginShape();
     for(let i = 0; i < 6; i++){
         let angle = (i/6) * Math.PI * 2;
         let px = x + Math.cos(angle)*radius;
         let py = y + Math.sin(angle)*radius;
-        vertex(px,py);
+        vertex(px, py);
     }
-endShape(CLOSE);
+    endShape(CLOSE);
 }
 
 function drawOctagon(x, y, radius) {
@@ -599,118 +775,151 @@ function drawOctagon(x, y, radius) {
 }
 
 function drawUI() {
-    fill(255);
-    textSize(20);
+    fill(0, 0, 0, 150);
+    noStroke();
+    rect(0, 0, width, 100);
+    
+    fill(...colors.white);
+    textSize(18);
     textAlign(LEFT);
-    text(`Vidas: ${lives}`, 20, 30);
-    text(`Puntos: ${score}`, 20, 55);
-    text(`Enemigos: ${enemies.length}`, 20, 80);
+    text(`Vidas: ${lives}`, 20, 25);
+    text(`Puntos: ${score}`, 20, 45);
+    text(`Enemigos: ${enemies.length}`, 20, 65);
     
     textAlign(CENTER);
     textSize(16);
-    text(`NIVEL ${currentLevel}`, width/2, 30);
-    text("Usa las flechas para moverte, ESPACIO para disparar", width/2, height - 20);
+    titleColor = (titleColor + 1) % 360;
+    fill(color(`hsl(${titleColor}, 100%, 70%)`));
+    text(`NIVEL ${currentLevel}`, width/2, 25);
     
+    fill(...colors.cyan);
+    textSize(12);
+    text("Usa las flechas para moverte, ESPACIO para disparar", width/2, height - 15);
+    
+    // leyenda de enemigos 
     if (currentLevel === 2) {
         textAlign(RIGHT);
-        textSize(14);
+        textSize(12);
         fill(255, 150, 50);
-        text("Naranja: Dispara", width - 20, 30);
+        text("● Naranja: Dispara", width - 20, 25);
         fill(255, 100, 100);
-        text("Rojo oscuro: Resistente", width - 20, 50);
+        text("● Rojo: Resistente", width - 20, 40);
     }
 
     if (currentLevel === 3){
         textAlign(RIGHT);
-        textSize(14);
-        fill(100,255,150);
-        text("Verde: Galaga",width - 20,30);
-        fill(255,100,100);
-        text("Rojo: Resistente",width - 20,50);
+        textSize(12);
+        fill(...colors.green);
+        text("● Verde: Galaga", width - 20, 25);
+        fill(...colors.red);
+        text("● Rojo: Resistente", width - 20, 40);
         if (boss){
-            fill(255,50,255);
-            text("ALERTA ALERTA ALERTA", width - 20, 70);
+            fill(255, 50, 255);
+            textSize(14);
+            text("¡¡¡ ALERTA DE JEFE !!!", width - 20, 60);
         }
     }
 }
 
 function drawGameOver() {
-    fill(255, 0, 0);
+    fill(0, 0, 0, 200);
+    noStroke();
+    rect(0, 0, width, height);
+    
+    fill(...colors.red);
     textAlign(CENTER);
     textSize(48);
     text("GAME OVER", width/2, height/2 - 50);
     
-    fill(255);
+    fill(...colors.white);
     textSize(24);
     text(`Score Final: ${score}`, width/2, height/2);
     text(`Llegaste al Nivel: ${currentLevel}`, width/2, height/2 + 30);
-    text("Presiona R para reiniciar", width/2, height/2 + 60);
+    
+    fill(...colors.yellow);
+    textSize(18);
+    text("Presiona R para reiniciar", width/2, height/2 + 70);
 }
 
 function drawLevelComplete() {
-    fill(0, 255, 0);
-    textAlign(CENTER);
-    textSize(48);
-    text("¡NIVEL COMPLETADO!", width/2, height/2 - 50);
-    
-    fill(255);
-    textSize(24);
-    text(`Score: ${score}`, width/2, height/2);
-    
-    if (currentLevel < 3) {
-        text("Presiona N para siguiente nivel", width/2, height/2 + 30);
-        text("Presiona R para reiniciar", width/2, height/2 + 60);
-    } else {
-        text("¡Felicidades! Completaste todos los niveles", width/2, height/2 + 30);
-        text("Derrotaste al jefe final", width/2, height/2 + 60);
-        text("Presiona R para reiniciar", width/2, height/2 + 90);
-    }
+   // fondo espacial con degradado
+   drawSpaceBackground();
+   
+   // fondo oscuro trasnsparente
+   fill(0, 0, 0, 200);
+   noStroke();
+   rect(0, 0, width, height);
+   
+   fill(0, 255, 0);
+   textAlign(CENTER);
+   textSize(48);
+   text("¡NIVEL COMPLETADO!", width/2, height/2 - 50);
+   
+   fill(255);
+   textSize(24);
+   text(`Score: ${score}`, width/2, height/2);
+   
+   if (currentLevel < 3) {
+       text("Presiona N para siguiente nivel", width/2, height/2 + 30);
+       text("Presiona R para reiniciar", width/2, height/2 + 60);
+   } else {
+       text("¡Felicidades! Completaste todos los niveles", width/2, height/2 + 30);
+       text("Derrotaste al jefe final", width/2, height/2 + 60);
+       text("Presiona R para reiniciar", width/2, height/2 + 90);
+   }
 }
 
 function collision(obj1, obj2) {
-    return (obj1.x < obj2.x + obj2.size/2 &&
-            obj1.x + obj1.size/2 > obj2.x - obj2.size/2 &&
-            obj1.y < obj2.y + obj2.size/2 &&
-            obj1.y + obj1.size/2 > obj2.y - obj2.size/2);
+   return (obj1.x < obj2.x + obj2.size/2 &&
+           obj1.x + obj1.size/2 > obj2.x - obj2.size/2 &&
+           obj1.y < obj2.y + obj2.size/2 &&
+           obj1.y + obj1.size/2 > obj2.y - obj2.size/2);
 }
 
 function keyPressed() {
-    if (key === ' ' && gameState === 'playing') {
-        // Disparar
-        bullets.push({
-            x: player.x,
-            y: player.y - player.size/2,
-            size: 5,
-            speed: 8
-        });
-    }
-    
-    if (key === 'n' || key === 'N') {
-        if (gameState === 'levelComplete' && currentLevel < 3) {
-            // siguiente nivel
-            currentLevel++;
-            gameState = 'playing';
-            bullets = [];
-            enemyBullets = [];
-            createEnemies();
-            player.x = width / 2;
-            player.y = height - 50;
-            levelStartTime = millis();
-        }
-    }
-    
-    if (key === 'r' || key === 'R') {
-        // reinicia juego
-        lives = 3;
-        score = 0;
-        enemiesDestroyed = 0;
-        currentLevel = 1;
-        gameState = 'playing';
-        bullets = [];
-        enemyBullets = [];
-        createEnemies();
-        player.x = width / 2;
-        player.y = height - 50;
-        levelStartTime = millis();
-    }
+   if (key === ' ' && gameState === 'playing') {
+       bullets.push({
+           x: player.x,
+           y: player.y - player.size/2,
+           size: 5,
+           speed: 8
+       });
+   }
+   
+   if (key === 'n' || key === 'N') {
+       if (gameState === 'levelComplete' && currentLevel < 3) {
+           // siguiente nivel
+           currentLevel++;
+           gameState = 'playing';
+           bullets = [];
+           enemyBullets = [];
+           createEnemies();
+           player.x = width / 2;
+           player.y = height - 50;
+           levelStartTime = millis();
+       }
+   }
+   
+   if (key === 'r' || key === 'R') {
+       // reinicia juego
+       lives = 3;
+       score = 0;
+       enemiesDestroyed = 0;
+       currentLevel = 1;
+       gameState = 'playing';
+       bullets = [];
+       enemyBullets = [];
+       createEnemies();
+       player.x = width / 2;
+       player.y = height - 50;
+       levelStartTime = millis();
+   }
+
+   if (keyCode === ESCAPE) {
+       returnToMenu();
+   }
+}
+
+function returnToMenu() {
+   window.location.href = 'index.html';
 }
