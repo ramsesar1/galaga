@@ -22,34 +22,32 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/addons/p5.sound.min.js"></script>
-
 </head>
 <body>
     <script>
     let gameState = 'MENU';
     let currentSketch = null;
     
+    // Función actualizada para manejar las redirecciones
     function startGame(mode) {
-    if (currentSketch) {
-        currentSketch.remove();
+        if (currentSketch) {
+            currentSketch.remove();
+        }
+        
+        gameState = 'PLAYING';
+        
+        if (mode === 'single') {
+            // Redireccionar a singleplayer.html
+            window.location.href = 'singleplayer.html';
+        } else if (mode === 'multiplayer_local') {
+            // Redireccionar a multiplayer.html (modo directo)
+            window.location.href = 'multiplayerlocal.html';
+        } else if (mode === 'multiplayer_online') {
+            // Redireccionar a connection.html (configuración de red)
+            window.location.href = 'connection.html';
+        }
     }
-    
-    gameState = 'PLAYING';
-    
-    if (mode === 'single') {
-        // Redireccionar a singleplayer.html
-        window.location.href = 'singleplayer.html';
-    } else if (mode === 'multiplayer') {
-        // Redireccionar a multiplayer.html
-        window.location.href = 'multiplayer.html';
-    } else if (mode === 'connection') {
-        // Redireccionar a multiplayer.html
-        window.location.href = 'connection.html';
-    }
-    
-}
     
     function backToMenu() {
         if (currentSketch) {

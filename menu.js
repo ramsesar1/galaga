@@ -1,6 +1,6 @@
 const menuSketch = (p) => {
     let selectedOption = 0;
-    let maxOptions = 2;
+    let maxOptions = 3; // Ahora son 3 opciones
     let stars = [];
     let titleColor = 0;
     let blinkTimer = 0;
@@ -29,8 +29,6 @@ const menuSketch = (p) => {
                 speed: p.random(0.5, 2)
             });
         }
-
-        
     };
     
     p.draw = function() {
@@ -43,7 +41,6 @@ const menuSketch = (p) => {
         drawMenuOptions();
         
         drawInstructions();
-        
         
         drawCredits();
         
@@ -85,34 +82,47 @@ const menuSketch = (p) => {
         p.textSize(32);
         p.textStyle(p.NORMAL);
         
-        // singpleyar
+        // Opción 1: 1 jugador
         if (selectedOption === 0) {
             p.fill(...colors.yellow);
-            p.text(">", p.width/2 - 120, 280);
-            p.text("<", p.width/2 + 120, 280);
+            p.text(">", p.width/2 - 120, 260);
+            p.text("<", p.width/2 + 120, 260);
         } else {
             p.fill(...colors.white);
         }
-        p.text("1 JUGADOR", p.width/2, 280);
+        p.text("1 JUGADOR", p.width/2, 260);
         
-        // multiplayer
+        // Opción 2: 2 jugadores local
         if (selectedOption === 1) {
             p.fill(...colors.yellow);
-            // Indicador de selección
-            p.text(">", p.width/2 - 120, 340);
-            p.text("<", p.width/2 + 120, 340);
+            p.text(">", p.width/2 - 160, 320);
+            p.text("<", p.width/2 + 160, 320);
         } else {
             p.fill(...colors.white);
         }
-        p.text("2 JUGADORES", p.width/2, 340);
+        p.text("2 JUGADORES LOCAL", p.width/2, 320);
         
+        // Opción 3: 2 jugadores online
+        if (selectedOption === 2) {
+            p.fill(...colors.yellow);
+            p.text(">", p.width/2 - 170, 380);
+            p.text("<", p.width/2 + 170, 380);
+        } else {
+            p.fill(...colors.white);
+        }
+        p.text("2 JUGADORES ONLINE", p.width/2, 380);
+        
+        // Efecto de parpadeo para la opción seleccionada
         if (p.sin(blinkTimer * 10) > 0) {
             if (selectedOption === 0) {
                 p.fill(...colors.red);
-                p.text("1 JUGADOR", p.width/2, 280);
+                p.text("1 JUGADOR", p.width/2, 260);
             } else if (selectedOption === 1) {
                 p.fill(...colors.red);
-                p.text("2 JUGADORES", p.width/2, 340);
+                p.text("2 JUGADORES LOCAL", p.width/2, 320);
+            } else if (selectedOption === 2) {
+                p.fill(...colors.red);
+                p.text("2 JUGADORES ONLINE", p.width/2, 380);
             }
         }
     }
@@ -122,9 +132,9 @@ const menuSketch = (p) => {
         p.textSize(16);
         p.fill(...colors.cyan);
         
-        p.text("CONTROLES:", p.width/2, 420);
-        p.text("↑ ↓ - SELECCIONAR", p.width/2, 445);
-        p.text("ENTER - CONFIRMAR", p.width/2, 465);
+        p.text("CONTROLES:", p.width/2, 450);
+        p.text("↑ ↓ - SELECCIONAR", p.width/2, 475);
+        p.text("ENTER - CONFIRMAR", p.width/2, 495);
     }
     
     function drawCredits() {
@@ -153,7 +163,6 @@ const menuSketch = (p) => {
         }
     };
     
-    
     function startSelectedGame() {
         if (selectSound && selectSound.isLoaded()) {
             selectSound.play();
@@ -162,7 +171,9 @@ const menuSketch = (p) => {
         if (selectedOption === 0) {
             startGame('single');
         } else if (selectedOption === 1) {
-            startGame('connection');
+            startGame('multiplayer_local');
+        } else if (selectedOption === 2) {
+            startGame('multiplayer_online');
         }
     }
 };
