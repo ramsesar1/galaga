@@ -464,7 +464,7 @@ function updateBoss(){
                 boss.x += dx > 0 ? boss.speed : -boss.speed;
             }
             //patrones de disparo
-            if (currentTime - boss.lastShot > 800){
+            if (currentTime - boss.lastShot > 400){
                 //diparo triple
                 for (let angle = -0.3; angle <= 0.3; angle += 0.3){
                     enemyBullets.push({
@@ -480,7 +480,7 @@ function updateBoss(){
                 boss.lastShot = currentTime;
             }
 
-            if (currentTime - boss.specialAttackTimer > 2500){
+            if (currentTime - boss.specialAttackTimer > 600){
                 bossSpecialAttack();
                 boss.specialAttackTimer = currentTime;
             }

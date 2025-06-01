@@ -102,6 +102,16 @@ const menuSketch = (p) => {
         }
         p.text("2 JUGADORES", p.width/2, 320);
 
+        // Opción 3: puntajes
+        if (selectedOption === 2) {
+            p.fill(...colors.yellow);
+            p.text(">", p.width/2 - 120, 380);
+            p.text("<", p.width/2 + 120, 380);
+        } else {
+            p.fill(...colors.white);
+        }
+        p.text("PUNTAJES", p.width/2, 380);
+
         
         // Efecto de parpadeo para la opción seleccionada
         if (p.sin(blinkTimer * 10) > 0) {
@@ -111,7 +121,10 @@ const menuSketch = (p) => {
             } else if (selectedOption === 1) {
                 p.fill(...colors.red);
                 p.text("2 JUGADORES", p.width/2, 320);
-            } 
+            } else if (selectedOption === 2) {
+                p.fill(...colors.red);
+                p.text("PUNTAJES", p.width/2, 380);
+            }
         }
     }
     
@@ -161,7 +174,7 @@ const menuSketch = (p) => {
         } else if (selectedOption === 1) {
             startGame('multiplayer_local');
         } else if (selectedOption === 2) {
-            startGame('multiplayer_online');
+            startGame('puntajes');
         }
     }
 };

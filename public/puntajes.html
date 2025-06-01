@@ -256,7 +256,6 @@
     </div>
 
     <script>
-        // Generar estrellas de fondo
         function createStars() {
             for (let i = 0; i < 100; i++) {
                 const star = document.createElement('div');
@@ -269,19 +268,16 @@
             }
         }
 
-        // Formatear tiempo en segundos a mm:ss
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Formatear puntuación con separadores de miles
         function formatScore(score) {
             return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        // Cargar puntajes desde el servidor
         async function loadScores(mode) {
             const isPlayer1 = mode === 'single';
             const loadingId = isPlayer1 ? 'loading1' : 'loading2';
@@ -312,14 +308,12 @@
             }
         }
 
-        // Mostrar error
         function showError(errorId, message) {
             const errorDiv = document.getElementById(errorId);
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
 
-        // Mostrar puntajes en la tabla
         function displayScores(scores, bodyId) {
             const tbody = document.getElementById(bodyId);
             tbody.innerHTML = '';
@@ -336,21 +330,17 @@
             });
         }
 
-        // Volver al menú principal
         function returnToMenu() {
             window.location.href = 'index.html';
         }
 
-        // Inicializar página
         document.addEventListener('DOMContentLoaded', function() {
             createStars();
             
-            // Cargar ambos tipos de puntajes
             loadScores('single');
             loadScores('coop');
         });
 
-        // Auto-actualizar cada 30 segundos
         setInterval(() => {
             loadScores('single');
             loadScores('coop');
