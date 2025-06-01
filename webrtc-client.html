@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaga - Cliente Multijugador</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            z-index: 1000;
+        }
+
+        .status {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .connection-area {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border: 2px solid #ffff00;
+            border-radius: 10px;
+            margin: 20px;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .debug-area {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #ccc;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #111;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 8px 5px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        button.success {
+            background: linear-gradient(45deg, #00ff00, #00aa00);
+            animation: pulse 2s infinite;
+        }
+
+        button.copy-btn {
+            background: linear-gradient(45deg, #00ffff, #0080ff);
+            color: black;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(0, 255, 0, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+        }
+
+        #gameStream {
+            max-width: 800px;
+            max-height: 900px;
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        .input-display {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .key-instructions {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .answer-area {
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            animation: glow 3s infinite;
+        }
+
+        @keyframes glow {
+            0% { border-color: #00ff00; box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
+            50% { border-color: #ffff00; box-shadow: 0 0 20px rgba(255, 255, 0, 0.5); }
+            100% { border-color: #00ff00; box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
+        }
+
+        .step-indicator {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .step-number {
+            background: #ffff00;
+            color: black;
+            padding: 2px 8px;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div class="status" id="status">Estado: Desconectado</div>
+        <button id="backBtn" onclick="returnToMenu()">← Volver al Menú</button>
+        <button onclick="toggleDebug()">🔍 Debug</button>
+    </div>
+
+    <div class="connection-area" id="connectionArea">
+        <h3>🚀 Conexión WebRTC - Cliente</h3>
+        
+        <div class="step-indicator">
+            <span class="step-number">1</span>
+            Pega aquí la oferta que te envió el HOST:
+        </div>
+        
+        <textarea id="offerInput" placeholder="Pega la oferta JSON del host aquí...&#10;&#10;Debería empezar con: {&quot;type&quot;:&quot;offer&quot;,&quot;sdp&quot;:..."></textarea>
+        <button id="connectBtn" onclick="connectToHost()">🔗 CONECTAR AL HOST</button>
+        
+        <div class="step-indicator">
+            <span class="step-number">2</span>
+            Tu respuesta (copia esto y envíalo al HOST):
+        </div>
+
+        <textarea id="clientAnswer" readonly placeholder="La respuesta del cliente aparecerá aquí automáticamente..."></textarea>
+
+        <div id="answerArea" class="answer-area" style="display: none;">
+            <div class="step-indicator">
+                <span class="step-number">2</span>
+                ¡Respuesta generada! Copia este JSON y envíalo al HOST:
+            </div>
+            
+            <textarea id="answerOutput" readonly placeholder="La respuesta aparecerá aquí automáticamente..."></textarea>
+            
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="copy-btn" onclick="copyAnswer()">📋 COPIAR RESPUESTA</button>
+                <p style="font-size: 12px; color: #aaa; margin-top: 10px;">
+                    💡 Envía esta respuesta al HOST para completar la conexión
+                </p>
+            </div>
+        </div>
+
+        <div id="waitingArea" style="display: none; text-align: center; margin-top: 20px;">
+            <div class="step-indicator">
+                <span class="step-number">3</span>
+                Esperando conexión del HOST...
+            </div>
+            <p style="color: #ffff00;">⏳ El HOST debe pegar tu respuesta para completar la conexión</p>
+            <p style="font-size: 12px; color: #aaa;">Tiempo esperando: <span id="waitTimer">0</span>s</p>
+        </div>
+
+        <div id="debugArea" class="debug-area" style="display: none;">
+            <h4>🐛 Debug Log:</h4>
+            <div id="debugLog"></div>
+            <button onclick="clearDebug()" style="font-size: 10px; padding: 5px 10px;">Limpiar Log</button>
+        </div>
+    </div>
+
+    <video id="gameStream" autoplay muted style="display: none;"></video>
+
+    <div class="input-display" id="inputDisplay">
+        Inputs: Ninguno
+    </div>
+
+    <div class="key-instructions">
+        <strong>Controles Player 2:</strong><br>
+        A/D - Mover<br>
+        W - Disparar
+    </div>
+
+    <script>
+        let peerConnection = null;
+        let dataChannel = null;
+        let remoteStream = null;
+        let currentInputs = {
+            left: false,
+            right: false,
+            shoot: false
+        };
+
+        let waitStartTime = null;
+        let waitTimer = null;
+        let connectionTimeout = null;
+
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ],
+            iceCandidatePoolSize: 10
+        };
+
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debugLog');
+            if (logElement) {
+                logElement.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            console.log(`[WebRTC Client] ${message}`);
+        }
+
+        function toggleDebug() {
+            const debugArea = document.getElementById('debugArea');
+            debugArea.style.display = debugArea.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function clearDebug() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+
+        function updateStatus(status) {
+            document.getElementById('status').textContent = `Estado: ${status}`;
+            debugLog(`Estado actualizado: ${status}`);
+        }
+
+        function startWaitTimer() {
+            waitStartTime = Date.now();
+            waitTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - waitStartTime) / 1000);
+                document.getElementById('waitTimer').textContent = elapsed;
+            }, 1000);
+        }
+
+        function stopWaitTimer() {
+            if (waitTimer) {
+                clearInterval(waitTimer);
+                waitTimer = null;
+            }
+        }
+
+        function setConnectionTimeout() {
+            // Timeout de 30 segundos para la conexión
+            connectionTimeout = setTimeout(() => {
+                debugLog('❌ TIMEOUT: Conexión tomó más de 30 segundos');
+                updateStatus('❌ Timeout en conexión');
+                resetConnection();
+            }, 30000);
+        }
+
+        function clearConnectionTimeout() {
+            if (connectionTimeout) {
+                clearTimeout(connectionTimeout);
+                connectionTimeout = null;
+            }
+        }
+
+        function resetConnection() {
+            clearConnectionTimeout();
+            stopWaitTimer();
+            
+            if (peerConnection) {
+                try {
+                    peerConnection.close();
+                } catch (error) {
+                    debugLog(`⚠️ Error cerrando peerConnection: ${error.message}`);
+                }
+                peerConnection = null;
+            }
+            
+            dataChannel = null;
+            
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('connectBtn').textContent = '🔗 CONECTAR AL HOST';
+            document.getElementById('connectBtn').classList.remove('success');
+            
+            // Ocultar áreas de espera
+            document.getElementById('answerArea').style.display = 'none';
+            document.getElementById('waitingArea').style.display = 'none';
+        }
+
+        // Conectar al host
+        async function connectToHost() {
+            const offerText = document.getElementById('offerInput').value.trim();
+            
+            if (!offerText) {
+                alert('❌ Debes pegar la oferta del HOST primero');
+                return;
+            }
+
+            try {
+                debugLog('🔄 Iniciando proceso de conexión...');
+                
+                // Validar JSON
+                const offer = JSON.parse(offerText);
+                debugLog('✅ Oferta JSON válida recibida');
+                
+                updateStatus('Conectando...');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('connectBtn').textContent = '⏳ CONECTANDO...';
+
+                setConnectionTimeout();
+
+                // Crear conexión peer
+                peerConnection = new RTCPeerConnection(rtcConfig);
+                debugLog('🔗 PeerConnection creada con configuración STUN');
+
+                // Manejar estado de conexión ICE
+                peerConnection.oniceconnectionstatechange = () => {
+                    debugLog(`🧊 ICE Connection State: ${peerConnection.iceConnectionState}`);
+                    
+                    switch(peerConnection.iceConnectionState) {
+                        case 'connected':
+                        case 'completed':
+                            debugLog('✅ Conexión ICE establecida exitosamente');
+                            clearConnectionTimeout();
+                            break;
+                        case 'failed':
+                        case 'disconnected':
+                            debugLog('❌ Conexión ICE falló o se desconectó');
+                            updateStatus('❌ Conexión ICE fallida');
+                            resetConnection();
+                            break;
+                    }
+                };
+
+                // Manejar estado de gathering ICE
+                peerConnection.onicegatheringstatechange = () => {
+                    debugLog(`🧊 ICE Gathering State: ${peerConnection.iceGatheringState}`);
+                };
+
+                // Manejar stream remoto
+                peerConnection.ontrack = (event) => {
+                    debugLog('📺 Stream del juego recibido');
+                    const video = document.getElementById('gameStream');
+                    video.srcObject = event.streams[0];
+                    video.style.display = 'block';
+                    updateStatus('✅ Conectado - Recibiendo video');
+                };
+
+                // Manejar canal de datos
+                peerConnection.ondatachannel = (event) => {
+                    debugLog('📡 Canal de datos recibido del HOST');
+                    dataChannel = event.channel;
+                    
+                    dataChannel.onopen = () => {
+                        debugLog('✅ Canal de datos abierto - ¡Listo para jugar!');
+                        updateStatus('✅ Conectado - Jugando');
+                        startInputCapture();
+                        document.getElementById('waitingArea').style.display = 'none';
+                        stopWaitTimer();
+                        clearConnectionTimeout();
+                    };
+                    
+                    dataChannel.onclose = () => {
+                        debugLog('❌ Canal de datos cerrado por el HOST');
+                        updateStatus('Desconectado');
+                    };
+                    
+                    dataChannel.onerror = (error) => {
+                        debugLog(`💥 Error en canal de datos: ${error}`);
+                    };
+
+                    dataChannel.onmessage = (event) => {
+                        debugLog(`📨 Mensaje recibido del HOST: ${event.data}`);
+                    };
+                };
+
+                // Manejar candidatos ICE con mejor logging
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        debugLog(`🧊 Nuevo ICE candidate: ${event.candidate.type} - ${event.candidate.protocol}`);
+                    } else {
+                        debugLog('🧊 ICE candidate gathering completado');
+                    }
+                };
+
+                // Manejar cambios de estado de conexión
+                peerConnection.onconnectionstatechange = () => {
+                    debugLog(`🔄 Connection State: ${peerConnection.connectionState}`);
+                    
+                    switch(peerConnection.connectionState) {
+                        case 'connected':
+                            debugLog('✅ PeerConnection completamente establecida');
+                            break;
+                        case 'failed':
+                            debugLog('❌ PeerConnection falló');
+                            updateStatus('❌ Conexión fallida');
+                            resetConnection();
+                            break;
+                        case 'disconnected':
+                            debugLog('⚠️ PeerConnection desconectada');
+                            updateStatus('⚠️ Conexión perdida');
+                            break;
+                        case 'closed':
+                            debugLog('🔒 PeerConnection cerrada');
+                            updateStatus('Desconectado');
+                            break;
+                    }
+                };
+
+                // Establecer oferta remota
+                debugLog('🔧 Procesando oferta del HOST...');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                debugLog('✅ Oferta del HOST aplicada exitosamente');
+
+                // Crear respuesta
+                debugLog('🔧 Creando respuesta para el HOST...');
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                debugLog('✅ Respuesta creada y aplicada localmente');
+
+                // Esperar a que ICE gathering se complete
+                if (peerConnection && peerConnection.iceGatheringState !== 'complete') {
+                    debugLog('⏳ Esperando ICE candidates...');
+                    await new Promise((resolve, reject) => {
+                        let timeoutId = setTimeout(() => {
+                            debugLog('⚠️ Timeout esperando ICE candidates');
+                            resolve(); // Continuar aunque no se complete
+                        }, 45000);
+
+                        const checkGathering = () => {
+                            if (!peerConnection) {
+                                clearTimeout(timeoutId);
+                                reject(new Error('PeerConnection fue cerrada'));
+                                return;
+                            }
+                            
+                            if (peerConnection.iceGatheringState === 'complete') {
+                                clearTimeout(timeoutId);
+                                debugLog('✅ ICE gathering completado');
+                                resolve();
+                            } else {
+                                setTimeout(checkGathering, 100);
+                            }
+                        };
+                        checkGathering();
+                    });
+                }
+
+                // MOSTRAR LA RESPUESTA EN LA INTERFAZ
+                if (peerConnection && peerConnection.localDescription) {
+                    const answerJSON = JSON.stringify(peerConnection.localDescription);
+                    document.getElementById('clientAnswer').value = answerJSON;
+                    document.getElementById('answerOutput').value = answerJSON;
+                    document.getElementById('answerArea').style.display = 'block';
+                    document.getElementById('waitingArea').style.display = 'block';
+                } else {
+                    throw new Error('No se pudo generar la respuesta local');
+                }
+                
+                // Actualizar botón
+                document.getElementById('connectBtn').textContent = '✅ RESPUESTA GENERADA';
+                document.getElementById('connectBtn').classList.add('success');
+                
+                startWaitTimer();
+                debugLog('🎉 ¡Respuesta lista! Esperando que el HOST la procese...');
+
+                // Mostrar alerta
+                setTimeout(() => {
+                    alert('✅ ¡Respuesta generada!\n\n📋 Copia el texto del cuadro verde y envíalo al HOST para completar la conexión.');
+                }, 500);
+
+            } catch (error) {
+                debugLog(`💥 Error durante la conexión: ${error.message}`);
+                console.error('Error completo:', error);
+                updateStatus('❌ Error de conexión');
+                resetConnection();
+                alert('❌ Error al conectar: ' + error.message);
+            }
+        }
+
+        // Copiar respuesta al portapapeles
+        function copyAnswer() {
+            const textarea = document.getElementById('answerOutput');
+            textarea.select();
+            textarea.setSelectionRange(0, 99999);
+            
+            try {
+                document.execCommand('copy');
+                
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ ¡COPIADO!';
+                button.style.background = 'linear-gradient(45deg, #00ff00, #00aa00)';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'linear-gradient(45deg, #00ffff, #0080ff)';
+                }, 2000);
+                
+                debugLog('📋 Respuesta copiada al portapapeles');
+                
+            } catch (err) {
+                debugLog(`❌ Error copiando: ${err.message}`);
+                alert('❌ Error copiando. Selecciona manualmente el texto y cópialo con Ctrl+C');
+            }
+        }
+
+        function startInputCapture() {
+            debugLog('🎮 Sistema de captura de inputs iniciado');
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+        }
+
+        function handleKeyDown(event) {
+            let inputChanged = false;
+
+            switch(event.key.toLowerCase()) {
+                case 'a':
+                    if (!currentInputs.left) {
+                        currentInputs.left = true;
+                        inputChanged = true;
+                    }
+                    break;
+                case 'd':
+                    if (!currentInputs.right) {
+                        currentInputs.right = true;
+                        inputChanged = true;
+                    }
+                    break;
+                case 'w':
+                    if (!currentInputs.shoot) {
+                        currentInputs.shoot = true;
+                        inputChanged = true;
+                    }
+                    break;
+            }
+
+            if (inputChanged) {
+                sendInputs();
+                updateInputDisplay();
+            }
+            
+            if (['w', 'a', 'd', ' '].includes(event.key.toLowerCase())) {
+                event.preventDefault();
+            }
+        }
+
+        function handleKeyUp(event) {
+            let inputChanged = false;
+
+            switch(event.key.toLowerCase()) {
+                case 'a':
+                    if (currentInputs.left) {
+                        currentInputs.left = false;
+                        inputChanged = true;
+                    }
+                    break;
+                case 'd':
+                    if (currentInputs.right) {
+                        currentInputs.right = false;
+                        inputChanged = true;
+                    }
+                    break;
+                case 'w':  
+                    if (currentInputs.shoot) {
+                        currentInputs.shoot = false;
+                        inputChanged = true;
+                    }
+                    break;
+            }
+
+            if (inputChanged) {
+                sendInputs();
+                updateInputDisplay();
+            }
+            
+            if (['w', 'a', 'd', ' '].includes(event.key.toLowerCase())) {
+                event.preventDefault();
+            }
+        }
+
+        function sendInputs() {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                const message = {
+                    type: 'input',
+                    inputs: currentInputs,
+                    timestamp: Date.now()
+                };
+                dataChannel.send(JSON.stringify(message));
+            }
+        }
+
+        function updateInputDisplay() {
+            const activeInputs = [];
+            if (currentInputs.left) activeInputs.push('← Izquierda');
+            if (currentInputs.right) activeInputs.push('→ Derecha');
+            if (currentInputs.shoot) activeInputs.push('🚀 Disparar');
+
+            document.getElementById('inputDisplay').textContent = 
+                'Inputs: ' + (activeInputs.length > 0 ? activeInputs.join(', ') : 'Ninguno');
+        }
+
+        function returnToMenu() {
+            debugLog('🔙 Regresando al menú principal');
+            resetConnection();
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+            }
+            window.location.href = 'index.html';
+        }
+
+        window.addEventListener('beforeunload', function() {
+            debugLog('🚪 Cerrando ventana, limpiando conexiones...');
+            resetConnection();
+        });
+
+        // Inicializar debug log
+        debugLog('🚀 Cliente WebRTC inicializado');
+    </script>
+</body>
+</html>

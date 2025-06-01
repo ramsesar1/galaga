@@ -15,6 +15,23 @@ let enemyShootSound;
 let bossShootSound;
 let backgroundMusic;
 let musicStarted = false;
+let isWebRTCHost = false;
+let webrtcInitialized = false;
+
+
+let peerConnection = null;
+let dataChannel = null;
+let localStream = null;
+let remoteInputs = { left: false, right: false, shoot: false };
+let lastRemoteInputs = { left: false, right: false, shoot: false };
+
+const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
 
 
 let stars = [];
@@ -70,7 +87,309 @@ function setup() {
     backgroundMusic = createAudio('Galaga_Medley_(Ultimate).mp3');
     backgroundMusic.volume(0.1);
 
+    initializeMultiplayer();
+
+}
+
+function initializeMultiplayer() {
+    const multiplayerData = sessionStorage.getItem('multiplayerData');
+    if (multiplayerData) {
+        const data = JSON.parse(multiplayerData);
+        if (data.isHost && data.isConnected) {
+            isWebRTCHost = true;
+            setTimeout(initWebRTCConnection, 1000);
+        }
+    }
+}
+
+async function initWebRTCConnection() {
+    if (!webrtcInitialized) {
+        const result = await initWebRTCHost();
+        if (result.success) {
+            webrtcInitialized = true;
+            console.log('WebRTC inicializado como host');
+            console.log('Comparte esta oferta con el cliente:');
+            console.log(JSON.stringify(result.offer));
+            
+            // Mostrar UI para compartir oferta
+            showWebRTCSetup(result.offer);
+        } else {
+            console.error('Error inicializando WebRTC:', result.error);
+        }
+    }
+}
+
+async function initWebRTCHost() {
+    try {
+        console.log('Inicializando WebRTC como host...');
+        
+        // Crear conexión peer
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        
+        // Configurar eventos importantes ANTES de crear el canal de datos
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('ICE candidate generado');
+            } else {
+                console.log('Recolección de ICE candidates completada');
+            }
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            console.log('Estado de conexión:', peerConnection.connectionState);
+            if (peerConnection.connectionState === 'connected') {
+                console.log('¡Conexión WebRTC establecida exitosamente!');
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('Estado ICE:', peerConnection.iceConnectionState);
+        };
+        
+        // IMPORTANTE: Agregar el evento ondatachannel
+        peerConnection.ondatachannel = (event) => {
+            console.log('Canal de datos recibido del cliente');
+            const channel = event.channel;
+            
+            channel.onopen = () => {
+                console.log('Canal de datos del cliente abierto - Listo para recibir inputs');
+            };
+            
+            channel.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'input') {
+                        lastRemoteInputs = { ...remoteInputs };
+                        remoteInputs = message.inputs;
+                    }
+                } catch (error) {
+                    console.error('Error procesando mensaje del cliente:', error);
+                }
+            };
+            
+            channel.onerror = (error) => {
+                console.error('Error en canal de datos del cliente:', error);
+            };
+        };
+        
+        // Crear canal de datos para comunicación
+        dataChannel = peerConnection.createDataChannel('gameInputs', {
+            ordered: true
+        });
+        
+        dataChannel.onopen = () => {
+            console.log('Canal de datos del host abierto');
+        };
+        
+        dataChannel.onerror = (error) => {
+            console.error('Error en canal de datos del host:', error);
+        };
+        
+        // Capturar el stream del canvas
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const canvas = document.querySelector('canvas');
+        if (!canvas) {
+            throw new Error('Canvas no encontrado');
+        }
+
+        try {
+            localStream = canvas.captureStream(30);
+            console.log('Stream capturado del canvas');
+            
+            if (localStream.getTracks().length === 0) {
+                throw new Error('No se pudieron obtener tracks del canvas');
+            }
+            
+            localStream.getTracks().forEach(track => {
+                console.log('Agregando track:', track.kind);
+                peerConnection.addTrack(track, localStream);
+            });
+            
+        } catch (streamError) {
+            console.error('Error capturando stream:', streamError);
+            throw streamError;
+        }
+        
+        // Crear oferta
+        const offer = await peerConnection.createOffer({
+            offerToReceiveVideo: false,
+            offerToReceiveAudio: false
+        });
+        
+        await peerConnection.setLocalDescription(offer);
+        
+        // Esperar ICE candidates
+        await new Promise((resolve) => {
+            if (peerConnection.iceGatheringState === 'complete') {
+                resolve();
+            } else {
+                const timeout = setTimeout(() => {
+                    console.log('Timeout esperando ICE candidates, continuando...');
+                    resolve();
+                }, 5000);
+                
+                peerConnection.addEventListener('icegatheringstatechange', () => {
+                    if (peerConnection.iceGatheringState === 'complete') {
+                        clearTimeout(timeout);
+                        resolve();
+                    }
+                });
+            }
+        });
+        
+        return {
+            success: true,
+            offer: peerConnection.localDescription
+        };
+        
+    } catch (error) {
+        console.error('Error inicializando WebRTC:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+function showWebRTCSetup(offer) {
+    const setupDiv = document.createElement('div');
+    setupDiv.id = 'webrtc-setup';
+    setupDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.95);
+        border: 2px solid #00ffff;
+        border-radius: 10px;
+        padding: 20px;
+        z-index: 1000;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        color: white;
+        font-family: 'Courier New', monospace;
+    `;
     
+    setupDiv.innerHTML = `
+        <h3 style="color: #00ffff; margin-top: 0;">🚀 Configuración WebRTC - HOST</h3>
+        <p><strong>Paso 1:</strong> Comparte esta oferta con el cliente:</p>
+        <textarea readonly id="offer-text" style="width: 100%; height: 120px; background: #111; color: #00ff00; border: 1px solid #666; padding: 10px; font-family: monospace; font-size: 11px;">${JSON.stringify(offer)}</textarea>
+        <button onclick="copyOffer()" style="background: #ff6b35; border: none; color: white; padding: 8px 16px; margin: 5px; border-radius: 5px; cursor: pointer;">📋 Copiar Oferta</button>
+        <br><br>
+        <p><strong>Paso 2:</strong> Pega aquí la respuesta del cliente:</p>
+        <textarea id="client-answer" placeholder="Pega la respuesta JSON del cliente aquí..." style="width: 100%; height: 120px; background: #111; color: #ffff00; border: 1px solid #666; padding: 10px; font-family: monospace; font-size: 11px;"></textarea>
+        <br>
+        <button onclick="processAnswer()" style="background: #00ff00; color: black; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold;">🔗 Conectar</button>
+        <button onclick="closeWebRTCSetup()" style="background: #666; border: none; color: white; padding: 8px 16px; margin: 5px; border-radius: 5px; cursor: pointer;">❌ Cancelar</button>
+        <div id="connection-status" style="margin-top: 15px; padding: 10px; background: #333; border-radius: 5px; display: none;">
+            <p style="margin: 0; color: #ffff00;">🔄 Estado de conexión: <span id="status-text">Esperando...</span></p>
+        </div>
+    `;
+    
+    document.body.appendChild(setupDiv);
+}
+
+async function processAnswer() {
+    const answerText = document.getElementById('client-answer').value.trim();
+    if (!answerText) {
+        alert('❌ Debes pegar la respuesta del cliente');
+        return;
+    }
+    
+    // Mostrar estado de conexión
+    const statusDiv = document.getElementById('connection-status');
+    const statusText = document.getElementById('status-text');
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'Procesando respuesta...';
+    
+    try {
+        const answer = JSON.parse(answerText);
+        const result = await processClientAnswer(answer);
+        if (result.success) {
+            statusText.textContent = 'Conexión establecida ✅';
+            statusText.style.color = '#00ff00';
+            
+            setTimeout(() => {
+                alert('🎮 ¡Conexión establecida! El cliente debería ver el juego ahora.');
+                closeWebRTCSetup();
+            }, 1000);
+        } else {
+            statusText.textContent = 'Error: ' + result.error;
+            statusText.style.color = '#ff0000';
+        }
+    } catch (error) {
+        statusText.textContent = 'Error: Respuesta JSON inválida';
+        statusText.style.color = '#ff0000';
+        console.error('Error parsing JSON:', error);
+    }
+}
+
+async function processClientAnswer(answer) {
+    try {
+        console.log('Procesando respuesta del cliente...');
+        
+        if (!peerConnection) {
+            throw new Error('Conexión peer no existe');
+        }
+        
+        if (!answer || !answer.type || answer.type !== 'answer') {
+            throw new Error('Respuesta inválida del cliente');
+        }
+        
+        // Verificar estado antes de procesar
+        if (peerConnection.signalingState !== 'have-local-offer') {
+            throw new Error(`Estado incorrecto: ${peerConnection.signalingState}`);
+        }
+        
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('Respuesta del cliente procesada exitosamente');
+        
+        // Esperar a que se establezca la conexión
+        return new Promise((resolve) => {
+            const checkConnection = () => {
+                console.log('Estado de conexión:', peerConnection.connectionState);
+                console.log('Estado ICE:', peerConnection.iceConnectionState);
+                
+                if (peerConnection.connectionState === 'connected') {
+                    resolve({ success: true });
+                } else if (peerConnection.connectionState === 'failed') {
+                    resolve({ success: false, error: 'Conexión fallida' });
+                } else {
+                    // Seguir verificando
+                    setTimeout(checkConnection, 1000);
+                }
+            };
+            
+            checkConnection();
+            
+            // Timeout después de 10 segundos
+            setTimeout(() => {
+                if (peerConnection.connectionState !== 'connected') {
+                    resolve({ 
+                        success: false, 
+                        error: 'Timeout en conexión' 
+                    });
+                }
+            }, 10000);
+        });
+        
+    } catch (error) {
+        console.error('Error procesando respuesta:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+
+function closeWebRTCSetup() {
+    const setupDiv = document.getElementById('webrtc-setup');
+    if (setupDiv) {
+        setupDiv.remove();
+    }
 }
 
 function draw() {
@@ -430,6 +749,30 @@ function bossSpecialAttack(){
 
 }
 
+function getRemoteInputs() {
+    return remoteInputs;
+}
+
+
+let lastRemoteShootState = false;
+
+function wasShootPressed() {
+    const currentShoot = remoteInputs.shoot;
+    const wasPressed = currentShoot && !lastRemoteShootState;
+    lastRemoteShootState = currentShoot;
+    return wasPressed;
+}
+
+function copyOffer() {
+    const setupDiv = document.getElementById('webrtc-setup');
+    const textarea = setupDiv.querySelector('textarea');
+    textarea.select();
+    document.execCommand('copy');
+    alert('Oferta copiada al portapapeles');
+}
+
+
+
 function updateGame() {
     // Jugador 1 - Flechas
     if (keyIsDown(LEFT_ARROW) && player1.x > player1.size/2) {
@@ -440,11 +783,23 @@ function updateGame() {
     }
 
     // Jugador 2 - A/D
-    if ((keyIsDown(65) || keyIsDown(97)) && player2.x > player2.size/2) { // A
-        player2.x -= player2.speed;
-    }
-    if ((keyIsDown(68) || keyIsDown(100)) && player2.x < width - player2.size/2) { // D
-        player2.x += player2.speed;
+    if (isWebRTCHost && webrtcInitialized) {
+        // Usar inputs del cliente remoto
+        const remoteInputs = getRemoteInputs();
+        if (remoteInputs.left && player2.x > player2.size/2) {
+            player2.x -= player2.speed;
+        }
+        if (remoteInputs.right && player2.x < width - player2.size/2) {
+            player2.x += player2.speed;
+        }
+    } else {
+        // Controles locales normales
+        if ((keyIsDown(65) || keyIsDown(97)) && player2.x > player2.size/2) { // A
+            player2.x -= player2.speed;
+        }
+        if ((keyIsDown(68) || keyIsDown(100)) && player2.x < width - player2.size/2) { // D
+            player2.x += player2.speed;
+        }
     }
     
     // Actualizar balas del jugador
@@ -520,6 +875,7 @@ function updateGame() {
     }
 
     updateEnemies();
+    handleRemoteShooting();
 
     if (boss){
         updateBoss();
@@ -976,13 +1332,16 @@ function keyPressed() {
 
     // Disparo jugador 2
     if ((key === 'w' || key === 'W') && gameState === 'playing' && lives2 > 0) {
-        bullets.push({
-            x: player2.x,
-            y: player2.y - player2.size / 2,
-            size: 5,
-            speed: 8
-        });
-        shootSound.play();
+        if (!isWebRTCHost || !webrtcInitialized) {
+            // Solo disparar localmente si no es host WebRTC
+            bullets.push({
+                x: player2.x,
+                y: player2.y - player2.size / 2,
+                size: 5,
+                speed: 8
+            });
+            shootSound.play();
+        }
     }
 
     if (key === 'n' || key === 'N') {
@@ -1025,3 +1384,51 @@ function keyPressed() {
 function returnToMenu() {
    window.location.href = 'index.html';
 }
+
+function handleRemoteShooting() {
+    if (isWebRTCHost && webrtcInitialized && wasShootPressed() && lives2 > 0) {
+        bullets.push({
+            x: player2.x,
+            y: player2.y - player2.size / 2,
+            size: 5,
+            speed: 8
+        });
+        shootSound.play();
+    }
+}
+
+function cleanupWebRTC() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Track detenido:', track.kind);
+        });
+        localStream = null;
+    }
+    
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    if (dataChannel) {
+        dataChannel.close();
+        dataChannel = null;
+    }
+    
+    webrtcInitialized = false;
+    console.log('Recursos WebRTC limpiados');
+}
+
+let remoteShootPressed = false;
+
+function updateRemoteInputs() {
+    // Esta función debe ser llamada una vez por frame
+    // Resetear el estado de disparo después de procesarlo
+    if (remoteShootPressed) {
+        remoteShootPressed = false;
+    }
+}
+
+// Limpiar al salir de la página
+window.addEventListener('beforeunload', cleanupWebRTC);

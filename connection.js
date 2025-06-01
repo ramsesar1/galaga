@@ -88,46 +88,41 @@ function startAsHost() {
     connectBtn.disabled = true;
     hostBtn.disabled = true;
     
-    showStatus('connecting', 'Iniciando como host...');
+    showStatus('connecting', 'Iniciando como host WebRTC...');
     
-    // Simular inicio de servidor (esto sería implementado con WebRTC o Socket.IO)
     setTimeout(() => {
         connectionStatus = 'hosting';
         connectedPlayers = 1;
         updateConnectionInfo();
-        showStatus('connected', 'Host iniciado - Esperando jugador...');
+        showStatus('connected', 'Host iniciado - El cliente debe ir a webrtc-client.html');
         
-        // Simular conexión de segundo jugador después de un tiempo
         setTimeout(() => {
-            if (connectionStatus === 'hosting') {
-                connectedPlayers = 2;
-                updateConnectionInfo();
-                showStatus('connected', '¡Ambos jugadores conectados! Iniciando juego...');
-                
-                setTimeout(() => {
-                    startMultiplayerGame();
-                }, 2000);
-            }
-        }, 3000 + Math.random() * 5000);
+            startMultiplayerGame();
+        }, 3000);
         
     }, 2000);
 }
-
 // Conectarse a host
 function attemptConnection() {
     if (!validateForm()) return;
     
-    if (!hostIP) {
-        showStatus('error', 'Debes ingresar la IP del host para conectarte');
-        return;
-    }
-    
     isHost = false;
     connectBtn.disabled = true;
     hostBtn.disabled = true;
-    connectionAttempts = 0;
     
-    tryConnect();
+    showStatus('connecting', 'Preparando conexión WebRTC...');
+    
+    setTimeout(() => {
+        connectionStatus = 'ready-to-connect';
+        connectedPlayers = 1;
+        isConnected = true;
+        updateConnectionInfo();
+        showStatus('connected', 'Listo para conectar - Abriendo cliente WebRTC...');
+        
+        setTimeout(() => {
+            startMultiplayerGame();
+        }, 2000);
+    }, 1500);
 }
 
 function tryConnect() {
@@ -189,14 +184,20 @@ function startMultiplayerGame() {
         sessionKey: sessionKey,
         hostIP: hostIP,
         isConnected: true,
-        connectionTime: Date.now()
+        connectionTime: Date.now(),
+        useWebRTC: true  // Nuevo parámetro
     };
     
-    // Guardar en sessionStorage para que multiplayer.js pueda acceder
+    // Guardar en sessionStorage para que multijugador.js pueda acceder
     sessionStorage.setItem('multiplayerData', JSON.stringify(gameData));
     
-    // Redirigir al juego
-    window.location.href = 'multiplayer.html';
+    if (isHost) {
+        // El host va directo al juego principal
+        window.location.href = 'multiplayer.html';
+    } else {
+        // El cliente va a la página de cliente WebRTC
+        window.location.href = 'webrtc-client.html';
+    }
 }
 
 // Validación de conexión en tiempo real (se ejecutaría periódicamente)
