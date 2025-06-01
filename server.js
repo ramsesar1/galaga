@@ -33,6 +33,14 @@ async function connectToDatabase() {
                 tiempo FLOAT NOT NULL 
             )
         `);
+        await dbConnection.execute(`
+            CREATE TABLE IF NOT EXISTS Jugadores2 (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nivel INT NOT NULL,
+                puntuacion INT NOT NULL,
+                tiempo FLOAT NOT NULL 
+            )
+        `);
         
         return true;
     } catch (error) {
@@ -56,7 +64,7 @@ async function checkConnection() {
 }
 
 app.post('/api/guardar-puntuacion', async (req, res) => {
-    const { nivel, puntuacion, tiempo } = req.body;
+    const { nivel, puntuacion, tiempo, modo } = req.body;
     
     if (!await checkConnection()) {
         return res.json({ 
@@ -66,8 +74,9 @@ app.post('/api/guardar-puntuacion', async (req, res) => {
     }
     
     try {
+        const tabla = modo === 'coop' ? 'Jugadores2' : 'Jugador1';
         await dbConnection.execute(
-            'INSERT INTO Jugador1 (nivel, puntuacion, tiempo) VALUES (?, ?, ?)',
+            `INSERT INTO ${tabla} (nivel, puntuacion, tiempo) VALUES (?, ?, ?)`,
             [nivel, puntuacion, tiempo]
         );
         
@@ -79,6 +88,8 @@ app.post('/api/guardar-puntuacion', async (req, res) => {
 });
 
 app.get('/api/mejores-puntuaciones', async (req, res) => {
+    const modo = req.query.modo || 'single';
+    
     if (!await checkConnection()) {
         return res.json({ 
             success: false, 
@@ -88,8 +99,9 @@ app.get('/api/mejores-puntuaciones', async (req, res) => {
     }
     
     try {
+        const tabla = modo === 'coop' ? 'Jugadores2' : 'Jugador1';
         const [rows] = await dbConnection.execute(
-            'SELECT nivel, puntuacion, tiempo FROM Jugador1 ORDER BY puntuacion DESC LIMIT 10'
+            `SELECT nivel, puntuacion, tiempo FROM ${tabla} ORDER BY puntuacion DESC LIMIT 10`
         );
         
         res.json({ success: true, data: rows });

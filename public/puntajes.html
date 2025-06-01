@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaga - Mejores Puntajes</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(45deg, #0a0a2e, #16213e, #0f3460);
+            font-family: 'Courier New', monospace;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 30px;
+            max-width: 1200px;
+            width: 90%;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .scores-container {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            min-width: 350px;
+            max-width: 400px;
+        }
+
+        .scores-container.player2 {
+            border-color: #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        h1 {
+            color: #00ffff;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        h1.player2-title {
+            color: #ff6b35;
+            text-shadow: 0 0 10px #ff6b35;
+        }
+
+        .scores-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .scores-table th {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            padding: 12px 8px;
+            border: 1px solid #00ffff;
+            font-size: 0.9em;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        .scores-container.player2 .scores-table th {
+            background: rgba(255, 107, 53, 0.2);
+            color: #ff6b35;
+            border-color: #ff6b35;
+            text-shadow: 0 0 5px #ff6b35;
+        }
+
+        .scores-table td {
+            padding: 10px 8px;
+            border: 1px solid #666;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 0.9em;
+        }
+
+        .scores-table tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+        }
+
+        .score {
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .loading {
+            color: #ffff00;
+            font-size: 1.1em;
+            margin: 20px 0;
+            animation: pulse 1.5s infinite;
+        }
+
+        .error {
+            color: #ff0000;
+            font-size: 1em;
+            margin: 20px 0;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .no-data {
+            color: #999;
+            font-style: italic;
+            margin: 20px 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .back-button {
+            background: linear-gradient(45deg, #666, #888);
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .refresh-button {
+            background: linear-gradient(45deg, #00ffff, #0099cc);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .refresh-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .refresh-button.player2 {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+        }
+
+        .refresh-button.player2:hover {
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+
+        /* Estrellas de fondo */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+            
+            .scores-container {
+                min-width: 300px;
+                max-width: 350px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="returnToMenu()">← MENÚ</button>
+    
+    <div class="main-container">
+        <!-- Puntajes Jugador Individual -->
+        <div class="scores-container">
+            <h1>🚀 MEJOR JUGADOR</h1>
+            <div id="loading1" class="loading">Cargando puntajes...</div>
+            <div id="error1" class="error" style="display: none;"></div>
+            <div id="scores1" style="display: none;">
+                <table class="scores-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>NIVEL</th>
+                            <th>PUNTOS</th>
+                            <th>TIEMPO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoresBody1">
+                    </tbody>
+                </table>
+                <button class="refresh-button" onclick="loadScores('single')">🔄 ACTUALIZAR</button>
+            </div>
+        </div>
+
+        <!-- Puntajes Cooperativo -->
+        <div class="scores-container player2">
+            <h1 class="player2-title">👫 MEJOR COOPERATIVO</h1>
+            <div id="loading2" class="loading">Cargando puntajes...</div>
+            <div id="error2" class="error" style="display: none;"></div>
+            <div id="scores2" style="display: none;">
+                <table class="scores-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>NIVEL</th>
+                            <th>PUNTOS</th>
+                            <th>TIEMPO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoresBody2">
+                    </tbody>
+                </table>
+                <button class="refresh-button player2" onclick="loadScores('coop')">🔄 ACTUALIZAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generar estrellas de fondo
+        function createStars() {
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = star.style.height = Math.random() * 3 + 1 + 'px';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(star);
+            }
+        }
+
+        // Formatear tiempo en segundos a mm:ss
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Formatear puntuación con separadores de miles
+        function formatScore(score) {
+            return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Cargar puntajes desde el servidor
+        async function loadScores(mode) {
+            const isPlayer1 = mode === 'single';
+            const loadingId = isPlayer1 ? 'loading1' : 'loading2';
+            const errorId = isPlayer1 ? 'error1' : 'error2';
+            const scoresId = isPlayer1 ? 'scores1' : 'scores2';
+            const bodyId = isPlayer1 ? 'scoresBody1' : 'scoresBody2';
+
+            // Mostrar loading
+            document.getElementById(loadingId).style.display = 'block';
+            document.getElementById(errorId).style.display = 'none';
+            document.getElementById(scoresId).style.display = 'none';
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/mejores-puntuaciones?modo=${mode}`);
+                const data = await response.json();
+
+                document.getElementById(loadingId).style.display = 'none';
+
+                if (data.success && data.data.length > 0) {
+                    displayScores(data.data, bodyId);
+                    document.getElementById(scoresId).style.display = 'block';
+                } else {
+                    showError(errorId, data.message || 'No hay puntajes registrados');
+                }
+            } catch (error) {
+                document.getElementById(loadingId).style.display = 'none';
+                showError(errorId, 'Error conectando con el servidor. Verifica que esté ejecutándose.');
+            }
+        }
+
+        // Mostrar error
+        function showError(errorId, message) {
+            const errorDiv = document.getElementById(errorId);
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Mostrar puntajes en la tabla
+        function displayScores(scores, bodyId) {
+            const tbody = document.getElementById(bodyId);
+            tbody.innerHTML = '';
+
+            scores.forEach((score, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="rank">${index + 1}</td>
+                    <td>${score.nivel}</td>
+                    <td class="score">${formatScore(score.puntuacion)}</td>
+                    <td>${formatTime(score.tiempo)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Volver al menú principal
+        function returnToMenu() {
+            window.location.href = 'index.html';
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', function() {
+            createStars();
+            
+            // Cargar ambos tipos de puntajes
+            loadScores('single');
+            loadScores('coop');
+        });
+
+        // Auto-actualizar cada 30 segundos
+        setInterval(() => {
+            loadScores('single');
+            loadScores('coop');
+        }, 30000);
+    </script>
+</body>
+</html>

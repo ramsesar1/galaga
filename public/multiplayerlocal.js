@@ -3,11 +3,18 @@ let gameStartTime = 0;
 let dbConnected = false;
 
 
-let player;
-let bullets = [];
+
+let player1, player2;
+let player1Bullets = [];
+let player2Bullets = [];
+let player1Lives = 15;
+let player2Lives = 15;
+let player1Active = true;
+let player2Active = true;
+
 let enemies = [];
 let enemyBullets = [];
-let lives = 15;
+
 let score = 0;
 let enemiesDestroyed = 0;
 let totalEnemies = 20;
@@ -40,10 +47,8 @@ async function saveScore() {
         return;
     }
     
-    // Calcular tiempo total de juego en segundos
     const gameTime = Math.floor((millis() - gameStartTime) / 1000);
     
-    // Solo guardar si hay datos válidos
     if (score === 0 && currentLevel === 1 && gameTime < 5) {
         console.log('No hay datos suficientes para guardar');
         return;
@@ -58,13 +63,14 @@ async function saveScore() {
             body: JSON.stringify({
                 nivel: currentLevel,
                 puntuacion: score,
-                tiempo: gameTime
+                tiempo: gameTime,
+                modo: 'coop'  // Añadido para modo cooperativo
             })
         });
         
         const data = await response.json();
         if (data.success) {
-            console.log('Puntuación guardada en BD:', {
+            console.log('Puntuación guardada en BD (modo coop):', {
                 nivel: currentLevel,
                 puntuacion: score,
                 tiempo: gameTime
@@ -108,9 +114,16 @@ function setup() {
         });
     }
 
-    // jugador
-    player = {
-        x: width / 2,
+    // jugadores
+    player1 = {
+        x: width / 2 - 50,
+        y: height - 50,
+        size: 30,
+        speed: 5
+    };
+    
+    player2 = {
+        x: width / 2 + 50,
         y: height - 50,
         size: 30,
         speed: 5
@@ -199,7 +212,7 @@ function createEnemies() {
     let repetition = levelInfo.repetition;
     
     if (baseLevel === 1) {
-        // Nivel 1 base + 10 enemigos extra por repetición
+        // Nivel 1 base + 10 enemigos extra por repeticion
         let extraEnemies = repetition * 10;
         totalEnemies = 20 + extraEnemies;
         
@@ -208,7 +221,7 @@ function createEnemies() {
                 x: 50 + (i % 5) * 140,
                 y: -50 - Math.floor(i / 5) * 60,
                 size: 25,
-                speed: 1 + (repetition * 0.2), // Velocidad aumenta ligeramente
+                speed: 1 + (repetition * 0.2), 
                 hp: 1,
                 maxHp: 1,
                 zigzagOffset: 0,
@@ -218,13 +231,13 @@ function createEnemies() {
             });
         }
     } else if (baseLevel === 2) {
-        // Nivel 2 base + 2 enemigos resistentes extra por repetición
+        // Nivel 2 base + 2 enemigos resistentes extra por repeticion
         let extraResistant = repetition * 2;
         totalEnemies = 20;
         
         for (let i = 0; i < totalEnemies; i++) {
             let canShoot = Math.random() < 0.4;
-            let isResistant = i < (3 + extraResistant); // 3 base + extras
+            let isResistant = i < (3 + extraResistant); 
             
             enemies.push({
                 x: 50 + (i % 5) * 140,
@@ -241,12 +254,12 @@ function createEnemies() {
             });
         }
     } else if (baseLevel === 3) {
-        // Nivel 3 base + 5 enemigos resistentes extra por repetición
+        // Nivel 3 base + 5 enemigos resistentes extra por repeticion
         let extraResistant = repetition * 5;
         totalEnemies = 40;
 
         for (let i = 0; i < totalEnemies; i++){
-            let isResistant = i < (15 + extraResistant); // 15 base + extras
+            let isResistant = i < (15 + extraResistant); 
             let targetRow = Math.floor(i/4);
             let targetCol = i % 4;
 
@@ -290,15 +303,15 @@ function createEnemies() {
 }
 
 function createBoss(repetition = 0){
-    let extraHp = repetition * 10; // 10 puntos de vida extra por repetición
+    let extraHp = repetition * 10;
     
     boss = {
         x: width / 2,
         y: -100,
         size: 80,
-        speed: 3 + (repetition * 0.2), // Velocidad aumenta ligeramente
-        hp: 50 + extraHp,
-        maxHp: 50 + extraHp,
+        speed: 3 + (repetition * 0.2), 
+        hp: 80 + extraHp,
+        maxHp: 80 + extraHp,
         canShoot: true,
         type: 'boss',
         lastShot: 0,
@@ -308,7 +321,7 @@ function createBoss(repetition = 0){
         targetX: width / 2,
         specialAttackTimer: 0,
         isCharging: false,
-        repetition: repetition // Guardamos la repetición para referencia
+        repetition: repetition 
     };
 }
 
@@ -383,19 +396,44 @@ function updateGalagaEnemy(enemy){
         break;
         
         case 'attacking':
-            let playerDx = player.x - enemy.x;
-            let playerDy = player.y - enemy.y;
-            let playerDist = Math.sqrt(playerDx*playerDx + playerDy*playerDy);
-
-            if (playerDist > 20){
+            let targetPlayer = null;
+            let minDistance = Infinity;
+            
+            if (player1Active) {
+                let player1Dx = player1.x - enemy.x;
+                let player1Dy = player1.y - enemy.y;
+                let player1Dist = Math.sqrt(player1Dx*player1Dx + player1Dy*player1Dy);
+                
+                if (player1Dist < minDistance) {
+                    minDistance = player1Dist;
+                    targetPlayer = player1;
+                }
+            }
+            
+            if (player2Active) {
+                let player2Dx = player2.x - enemy.x;
+                let player2Dy = player2.y - enemy.y;
+                let player2Dist = Math.sqrt(player2Dx*player2Dx + player2Dy*player2Dy);
+                
+                if (player2Dist < minDistance) {
+                    minDistance = player2Dist;
+                    targetPlayer = player2;
+                }
+            }
+            
+            if (targetPlayer && minDistance > 20) {
+                let playerDx = targetPlayer.x - enemy.x;
+                let playerDy = targetPlayer.y - enemy.y;
+                let playerDist = minDistance;
+                
                 enemy.x += (playerDx / playerDist) * (enemy.speed * 2);
                 enemy.y += (playerDy / playerDist) * (enemy.speed * 2);
             }
-
+        
             if (currentTime - enemy.attackStartTime > 3000){
                 enemy.state = 'formation';
             }
-        break;
+            break;
     }    
 }
 
@@ -442,7 +480,7 @@ function updateBoss(){
                 boss.lastShot = currentTime;
             }
 
-            if (currentTime - boss.specialAttackTimer > 5000){
+            if (currentTime - boss.specialAttackTimer > 2500){
                 bossSpecialAttack();
                 boss.specialAttackTimer = currentTime;
             }
@@ -457,13 +495,21 @@ function updateBoss(){
         }
     }
     //colision del jefe con el jugador
-    if (collision(boss, player)){
-        lives -= 2;
-        if (lives <= 0){
-            gameState = 'gameOver';
+    if (player1Active && collision(boss, player1)) {
+        player1Lives -= 2;
+        if (player1Lives <= 0) {
+            player1Active = false;
+        }
+    }
+    
+    if (player2Active && collision(boss, player2)) {
+        player2Lives -= 2;
+        if (player2Lives <= 0) {
+            player2Active = false;
         }
     }
 }
+
 
 function bossSpecialAttack(){
     //ataque espiral
@@ -483,26 +529,38 @@ function bossSpecialAttack(){
 }
 
 function updateGame() {
-    if (keyIsDown(LEFT_ARROW) && player.x > player.size/2) {
-        player.x -= player.speed;
+
+    if (player1Active) {
+        if (keyIsDown(LEFT_ARROW) && player1.x > player1.size/2) {
+            player1.x -= player1.speed;
+        }
+        if (keyIsDown(RIGHT_ARROW) && player1.x < width - player1.size/2) {
+            player1.x += player1.speed;
+        }
     }
-    if (keyIsDown(RIGHT_ARROW) && player.x < width - player.size/2) {
-        player.x += player.speed;
+
+     // Controles Jugador 2 (A/D)
+     if (player2Active) {
+        if (keyIsDown(65) && player2.x > player2.size/2) { // A
+            player2.x -= player2.speed;
+        }
+        if (keyIsDown(68) && player2.x < width - player2.size/2) { // D
+            player2.x += player2.speed;
+        }
     }
     
-    // Actualizar balas del jugador
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        bullets[i].y -= bullets[i].speed;
+for (let i = player1Bullets.length - 1; i >= 0; i--) {
+        player1Bullets[i].y -= player1Bullets[i].speed;
         
-        // Eliminar balas que salen de pantalla
-        if (bullets[i].y < 0) {
-            bullets.splice(i, 1);
+        if (player1Bullets[i].y < 0) {
+            player1Bullets.splice(i, 1);
             continue;
         }
         
+        // Colisiones con enemigos
         for (let j = enemies.length - 1; j >= 0; j--) {
-            if (collision(bullets[i], enemies[j])) {
-                bullets.splice(i, 1);
+            if (collision(player1Bullets[i], enemies[j])) {
+                player1Bullets.splice(i, 1);
                 enemies[j].hp--;
                 
                 if (enemies[j].hp <= 0) {
@@ -518,18 +576,64 @@ function updateGame() {
             }
         }
 
-        if (i >= bullets.length) continue;
+        if (i >= player1Bullets.length) continue;
 
-        //colision de balas con jefe
-        if (boss && collision(bullets[i],boss)){
-            bullets.splice(i,1);
+        // Colisión con jefe
+        if (boss && collision(player1Bullets[i], boss)) {
+            player1Bullets.splice(i, 1);
             boss.hp--;
 
-            if (boss.hp <= 0){
+            if (boss.hp <= 0) {
                 score += 100;
                 boss = null;
 
-                if (enemies.length === 0){
+                if (enemies.length === 0) {
+                    gameState = 'levelComplete';
+                }
+            }
+        }
+    }
+    
+    // Actualizar balas del jugador 2
+    for (let i = player2Bullets.length - 1; i >= 0; i--) {
+        player2Bullets[i].y -= player2Bullets[i].speed;
+        
+        if (player2Bullets[i].y < 0) {
+            player2Bullets.splice(i, 1);
+            continue;
+        }
+        
+        // Colisiones con enemigos
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            if (collision(player2Bullets[i], enemies[j])) {
+                player2Bullets.splice(i, 1);
+                enemies[j].hp--;
+                
+                if (enemies[j].hp <= 0) {
+                    let points = 10;
+                    if (enemies[j].type === 'resistant') points = 30;
+                    else if (enemies[j].type === 'galaga') points = 20;
+                    
+                    score += points;
+                    enemies.splice(j, 1);
+                    enemiesDestroyed++;
+                }
+                break;
+            }
+        }
+
+        if (i >= player2Bullets.length) continue;
+
+        // Colisión con jefe
+        if (boss && collision(player2Bullets[i], boss)) {
+            player2Bullets.splice(i, 1);
+            boss.hp--;
+
+            if (boss.hp <= 0) {
+                score += 100;
+                boss = null;
+
+                if (enemies.length === 0) {
                     gameState = 'levelComplete';
                 }
             }
@@ -541,18 +645,27 @@ function updateGame() {
         for (let i = enemyBullets.length - 1; i >= 0; i--) {
             enemyBullets[i].y += enemyBullets[i].speed;
             
-            // Eliminar balas que salen de pantalla
             if (enemyBullets[i].y > height) {
                 enemyBullets.splice(i, 1);
                 continue;
             }
             
-            // Colision bala enemiga-jugador
-            if (collision(enemyBullets[i], player)) {
+            // Colisión con jugador 1
+            if (player1Active && collision(enemyBullets[i], player1)) {
                 enemyBullets.splice(i, 1);
-                lives--;
-                if (lives <= 0) {
-                    gameState = 'gameOver';
+                player1Lives--;
+                if (player1Lives <= 0) {
+                    player1Active = false;
+                }
+                continue;
+            }
+            
+            // Colisión con jugador 2
+            if (player2Active && collision(enemyBullets[i], player2)) {
+                enemyBullets.splice(i, 1);
+                player2Lives--;
+                if (player2Lives <= 0) {
+                    player2Active = false;
                 }
             }
         }
@@ -560,11 +673,16 @@ function updateGame() {
 
     updateEnemies();
 
-    if (boss){
+    if (boss) {
         updateBoss();
     }
 
-    if (enemies.length === 0 && !boss){
+    // Game Over solo cuando ambos jugadores pierden
+    if (!player1Active && !player2Active) {
+        gameState = 'gameOver';
+    }
+
+    if (enemies.length === 0 && !boss) {
         gameState = 'levelComplete';
     }
 }
@@ -605,11 +723,21 @@ function updateEnemies(){
         }
         
         // Colision enemigo-jugador
-        if (collision(enemy, player)) {
+        if (player1Active && collision(enemy, player1)) {
             enemies.splice(i, 1);
-            lives--;
-            if (lives <= 0) {
-                gameState = 'gameOver';
+            player1Lives--;
+            if (player1Lives <= 0) {
+                player1Active = false;
+            }
+            continue;
+        }
+        
+        // Colisión enemigo-jugador 2
+        if (player2Active && collision(enemy, player2)) {
+            enemies.splice(i, 1);
+            player2Lives--;
+            if (player2Lives <= 0) {
+                player2Active = false;
             }
             continue;
         }
@@ -617,22 +745,43 @@ function updateEnemies(){
         // Enemigo llega al fondo
         if (enemy.y > height) {
             enemies.splice(i, 1);
-            lives--;
-            if (lives <= 0) {
-                gameState = 'gameOver';
+            // Quitar vida al jugador activo más cercano
+            if (player1Active && player2Active) {
+                if (Math.abs(enemy.x - player1.x) < Math.abs(enemy.x - player2.x)) {
+                    player1Lives--;
+                    if (player1Lives <= 0) player1Active = false;
+                } else {
+                    player2Lives--;
+                    if (player2Lives <= 0) player2Active = false;
+                }
+            } else if (player1Active) {
+                player1Lives--;
+                if (player1Lives <= 0) player1Active = false;
+            } else if (player2Active) {
+                player2Lives--;
+                if (player2Lives <= 0) player2Active = false;
             }
         }
     }
 }
 
 function drawGame() {
-    drawPlayer();
+    // Dibujar jugadores
+    if (player1Active) {
+        drawPlayer(player1, colors.blue);
+    } else {
+        drawDeadPlayer(player1);
+    }
+    
+    if (player2Active) {
+        drawPlayer(player2, colors.green);
+    } else {
+        drawDeadPlayer(player2);
+    }
     
     drawPlayerBullets();
-    
     drawEnemyBullets();
     
-    // dibuja enemigos
     for (let enemy of enemies) {
         drawEnemy(enemy);
     }
@@ -641,20 +790,17 @@ function drawGame() {
         drawBoss();
     }
     
-    // Dibujar UI
     drawUI();
 }
 
-function drawPlayer() {
+function drawPlayer(player, playerColor) {
     push();
     translate(player.x, player.y);
     
-    // Cuerpo principal de la nave
-    fill(...colors.blue);
+    fill(...playerColor);
     stroke(...colors.cyan);
     strokeWeight(2);
     
-    // forma de nave espacial
     beginShape();
     vertex(0, -player.size/2);          
     vertex(-player.size/3, player.size/4); 
@@ -665,7 +811,7 @@ function drawPlayer() {
     
     fill(...colors.cyan);
     noStroke();
-    ellipse(0, 0, 8, 8); //cabinita
+    ellipse(0, 0, 8, 8);
     
     fill(...colors.yellow);
     rect(-player.size/4, player.size/3, 4, 8);
@@ -674,16 +820,51 @@ function drawPlayer() {
     pop();
 }
 
+function drawDeadPlayer(player) {
+    push();
+    translate(player.x, player.y);
+    
+    fill(100, 100, 100, 100);
+    stroke(150, 150, 150, 150);
+    strokeWeight(1);
+    
+    beginShape();
+    vertex(0, -player.size/2);          
+    vertex(-player.size/3, player.size/4); 
+    vertex(-player.size/2, player.size/2);
+    vertex(player.size/2, player.size/2);  
+    vertex(player.size/3, player.size/4); 
+    endShape(CLOSE);
+    
+    pop();
+}
+
 function drawPlayerBullets() {
-    for (let bullet of bullets) {
+    // Balas del jugador 1 (azul)
+    for (let bullet of player1Bullets) {
         push();
         translate(bullet.x, bullet.y);
         
-        fill(...colors.yellow, 150);
+        fill(...colors.blue, 150);
         noStroke();
         ellipse(0, 0, bullet.size * 2, bullet.size * 4);
         
-        fill(...colors.yellow);
+        fill(...colors.cyan);
+        ellipse(0, 0, bullet.size, bullet.size * 2);
+        
+        pop();
+    }
+    
+    // Balas del jugador 2 (verde)
+    for (let bullet of player2Bullets) {
+        push();
+        translate(bullet.x, bullet.y);
+        
+        fill(...colors.green, 150);
+        noStroke();
+        ellipse(0, 0, bullet.size * 2, bullet.size * 4);
+        
+        fill(150, 255, 150);
         ellipse(0, 0, bullet.size, bullet.size * 2);
         
         pop();
@@ -888,10 +1069,24 @@ function drawUI() {
     fill(...colors.white);
     textSize(18);
     textAlign(LEFT);
-    text(`Vidas: ${lives}`, 20, 25);
-    text(`Puntos: ${score}`, 20, 45);
-    text(`Enemigos: ${enemies.length}`, 20, 65);
+    // Info Jugador 1
+    if (player1Active) {
+        fill(...colors.blue);
+        text(`J1 Vidas: ${player1Lives}`, 20, 25);
+    } else {
+        fill(100, 100, 100);
+        text(`J1: MUERTO`, 20, 25);
+    }
     
+    // Info Jugador 2
+    if (player2Active) {
+        fill(...colors.green);
+        text(`J2 Vidas: ${player2Lives}`, 20, 45);
+    } else {
+        fill(100, 100, 100);
+        text(`J2: MUERTO`, 20, 45);
+    }
+
     textAlign(CENTER);
     textSize(16);
     titleColor = (titleColor + 1) % 360;
@@ -906,7 +1101,7 @@ function drawUI() {
     
     fill(...colors.cyan);
     textSize(12);
-    text("Usa las flechas para moverte, ESPACIO para disparar", width/2, height - 15);
+    text("J1: Flechas + ESPACIO | J2: A/D + W", width/2, height - 15);
     
     if (currentLevel >= 2) {
         textAlign(RIGHT);
@@ -1013,10 +1208,20 @@ function keyPressed() {
         musicStarted = true;
     }
 
-    if (key === ' ' && gameState === 'playing') {
-        bullets.push({
-            x: player.x,
-            y: player.y - player.size / 2,
+    if (key === ' ' && gameState === 'playing' && player1Active) {
+        player1Bullets.push({
+            x: player1.x,
+            y: player1.y - player1.size / 2,
+            size: 5,
+            speed: 8
+        });
+        shootSound.play();
+    }
+    
+    if ((key === 'w' || key === 'W') && gameState === 'playing' && player2Active) {
+        player2Bullets.push({
+            x: player2.x,
+            y: player2.y - player2.size / 2,
             size: 5,
             speed: 8
         });
@@ -1027,35 +1232,44 @@ function keyPressed() {
         if (gameState === 'levelComplete') {
             currentLevel++; 
             gameState = 'playing';
-            bullets = [];
+            player1Bullets = [];
+            player2Bullets = [];
             enemyBullets = [];
             createEnemies();
-            player.x = width / 2;
-            player.y = height - 50;
+            player1.x = width / 2 - 50;
+            player1.y = height - 50;
+            player2.x = width / 2 + 50;
+            player2.y = height - 50;
             levelStartTime = millis();
         }
     }
+
 
     if (key === 'r' || key === 'R') {
         if (gameState === 'gameOver' || score > 0) {
             saveScore();
         }
 
-        lives = 15;
+        player1Lives = 15;
+        player2Lives = 15;
+        player1Active = true;
+        player2Active = true;
         score = 0;
         enemiesDestroyed = 0;
         currentLevel = 1;
         gameState = 'playing';
-        bullets = [];
+        player1Bullets = [];
+        player2Bullets = [];
         enemyBullets = [];
         createEnemies();
-        player.x = width / 2;
-        player.y = height - 50;
+        player1.x = width / 2 - 50;
+        player1.y = height - 50;
+        player2.x = width / 2 + 50;
+        player2.y = height - 50;
         levelStartTime = millis();
         gameStartTime = millis(); 
         checkDatabaseConnection();
         backgroundMusic.loop();
-
     }
 
     if (keyCode === ESCAPE) {
