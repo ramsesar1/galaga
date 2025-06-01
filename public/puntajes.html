@@ -44,6 +44,34 @@
             box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
         }
 
+        .connection-status {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .connection-local {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+        }
+
+        .connection-remote {
+            background: rgba(255, 255, 0, 0.2);
+            border: 1px solid #ffff00;
+            color: #ffff00;
+        }
+
+        .connection-error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+
         h1 {
             color: #00ffff;
             font-size: 1.8em;
@@ -209,6 +237,10 @@
 <body>
     <button class="back-button" onclick="returnToMenu()">← MENÚ</button>
     
+    <div id="connectionStatus" class="connection-status">
+        🔍 Detectando conexión...
+    </div>
+    
     <div class="main-container">
         <!-- Puntajes Jugador Individual -->
         <div class="scores-container">
@@ -256,6 +288,155 @@
     </div>
 
     <script>
+        // Sistema de conexión universal
+        class UniversalScoreClient {
+            constructor() {
+                this.connectionType = null; // 'local', 'remote', null
+                this.gameClient = null;
+                this.localURL = 'http://localhost:3000';
+                
+                // IPs posibles para servidor remoto - CONFIGURA ESTAS IPs
+                this.possibleRemoteIPs = [
+                    '26.98.46.140',  // Cambia por la IP real del servidor
+                    '26.98.46.140',   // IP de ejemplo de Hamachi
+                    '25.0.0.1',       // IPs típicas de Hamachi
+                    '25.0.0.2',
+                    '25.0.0.3'
+                ];
+            }
+
+            async detectConnection() {
+                const statusDiv = document.getElementById('connectionStatus');
+                
+                // Intentar conexión local primero
+                try {
+                    const response = await fetch(`${this.localURL}/api/db-status`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.connected) {
+                            this.connectionType = 'local';
+                            statusDiv.textContent = '🟢 Conectado: Servidor Local';
+                            statusDiv.className = 'connection-status connection-local';
+                            console.log('Conexión local establecida');
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Servidor local no disponible, probando conexiones remotas...');
+                }
+
+                // Si no hay conexión local, probar conexiones remotas
+                for (const ip of this.possibleRemoteIPs) {
+                    try {
+                        console.log(`Probando servidor remoto en: ${ip}`);
+                        
+                        // Crear cliente temporal para probar
+                        const tempClient = new GameClient(ip, 3000);
+                        const connected = await tempClient.checkServerConnection();
+                        
+                        if (connected) {
+                            this.connectionType = 'remote';
+                            this.gameClient = tempClient;
+                            statusDiv.textContent = `🟡 Conectado: Servidor Remoto (${ip})`;
+                            statusDiv.className = 'connection-status connection-remote';
+                            console.log(`Conexión remota establecida con: ${ip}`);
+                            return true;
+                        }
+                    } catch (error) {
+                        console.log(`Error conectando a ${ip}:`, error);
+                    }
+                }
+
+                // No se encontró ninguna conexión
+                this.connectionType = null;
+                statusDiv.textContent = '🔴 Sin conexión al servidor';
+                statusDiv.className = 'connection-status connection-error';
+                console.log('No se pudo establecer conexión con ningún servidor');
+                return false;
+            }
+
+            async obtenerMejoresPuntuaciones(modo) {
+                if (this.connectionType === 'local') {
+                    // Usar conexión local directa
+                    try {
+                        const response = await fetch(`${this.localURL}/api/mejores-puntuaciones?modo=${modo}`);
+                        const result = await response.json();
+                        return result.success ? result.data : [];
+                    } catch (error) {
+                        console.error('Error con servidor local:', error);
+                        return [];
+                    }
+                } else if (this.connectionType === 'remote' && this.gameClient) {
+                    // Usar cliente remoto
+                    return await this.gameClient.obtenerMejoresPuntuaciones(modo);
+                } else {
+                    console.error('No hay conexión disponible');
+                    return [];
+                }
+            }
+        }
+
+        // Cliente GameClient integrado (copiado de serverremoto.js)
+        class GameClient {
+            constructor(serverIP = '26.98.46.140', serverPort = 3000) {
+                this.baseURL = `http://${serverIP}:${serverPort}`;
+                this.isConnected = false;
+            }
+
+            async checkServerConnection() {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/db-status`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.isConnected = data.connected;
+                        return data.connected;
+                    }
+                    
+                    this.isConnected = false;
+                    return false;
+                } catch (error) {
+                    this.isConnected = false;
+                    return false;
+                }
+            }
+
+            async obtenerMejoresPuntuaciones(modo = 'single') {
+                if (!this.isConnected) {
+                    await this.checkServerConnection();
+                }
+
+                try {
+                    const response = await fetch(`${this.baseURL}/api/mejores-puntuaciones?modo=${modo}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        return result.data;
+                    } else {
+                        console.error('Error obteniendo puntuaciones:', result.message);
+                        return [];
+                    }
+                } catch (error) {
+                    console.error('Error de red:', error);
+                    return [];
+                }
+            }
+        }
+
+        // Instancia global del cliente universal
+        const universalClient = new UniversalScoreClient();
+
         function createStars() {
             for (let i = 0; i < 100; i++) {
                 const star = document.createElement('div');
@@ -291,20 +472,25 @@
             document.getElementById(scoresId).style.display = 'none';
 
             try {
-                const response = await fetch(`http://localhost:3000/api/mejores-puntuaciones?modo=${mode}`);
-                const data = await response.json();
+                // Verificar conexión si es necesario
+                if (!universalClient.connectionType) {
+                    await universalClient.detectConnection();
+                }
 
+                const scores = await universalClient.obtenerMejoresPuntuaciones(mode);
+                
                 document.getElementById(loadingId).style.display = 'none';
 
-                if (data.success && data.data.length > 0) {
-                    displayScores(data.data, bodyId);
+                if (scores && scores.length > 0) {
+                    displayScores(scores, bodyId);
                     document.getElementById(scoresId).style.display = 'block';
                 } else {
-                    showError(errorId, data.message || 'No hay puntajes registrados');
+                    showError(errorId, 'No hay puntajes registrados');
                 }
             } catch (error) {
                 document.getElementById(loadingId).style.display = 'none';
-                showError(errorId, 'Error conectando con el servidor. Verifica que esté ejecutándose.');
+                showError(errorId, 'Error conectando con el servidor');
+                console.error('Error cargando puntajes:', error);
             }
         }
 
@@ -334,13 +520,19 @@
             window.location.href = 'index.html';
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', async function() {
             createStars();
             
+            // Detectar tipo de conexión
+            await universalClient.detectConnection();
+            
+            // Cargar puntajes
             loadScores('single');
             loadScores('coop');
         });
 
+        // Auto-refresh cada 30 segundos
         setInterval(() => {
             loadScores('single');
             loadScores('coop');

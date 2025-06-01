@@ -6,8 +6,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -63,8 +67,18 @@ async function checkConnection() {
     }
 }
 
+app.get('/api/ping', (req, res) => {
+    res.json({ 
+        message: 'Servidor funcionando', 
+        timestamp: new Date().toISOString(),
+        clientIP: req.ip || req.connection.remoteAddress
+    });
+});
+
 app.post('/api/guardar-puntuacion', async (req, res) => {
     const { nivel, puntuacion, tiempo, modo } = req.body;
+    
+    console.log(`Nueva puntuación recibida de ${req.ip}: Nivel ${nivel}, Puntos ${puntuacion}`);
     
     if (!await checkConnection()) {
         return res.json({ 
@@ -89,6 +103,8 @@ app.post('/api/guardar-puntuacion', async (req, res) => {
 
 app.get('/api/mejores-puntuaciones', async (req, res) => {
     const modo = req.query.modo || 'single';
+    
+    console.log(`Solicitud de puntuaciones de ${req.ip}: Modo ${modo}`);
     
     if (!await checkConnection()) {
         return res.json({ 
@@ -116,11 +132,34 @@ app.get('/api/db-status', async (req, res) => {
     res.json({ connected: isConnected });
 });
 
+function getLocalIPs() {
+    const interfaces = require('os').networkInterfaces();
+    const addresses = [];
+    
+    for (const name of Object.keys(interfaces)) {
+        for (const interface of interfaces[name]) {
+            if (interface.family === 'IPv4' && !interface.internal) {
+                addresses.push(interface.address);
+            }
+        }
+    }
+    
+    return addresses;
+}
+
 async function startServer() {
     await connectToDatabase();
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`Servidor corriendo en puerto ${PORT}`);
+        console.log('IPs disponibles para conexiones remotas:');
+        
+        const localIPs = getLocalIPs();
+        localIPs.forEach(ip => {
+            console.log(`  http://${ip}:${PORT}`);
+        });
+        
+        console.log('\nPara conectar desde otra máquina, usa una de estas IPs en tu cliente.');
     });
 }
 

@@ -29,15 +29,70 @@ let backgroundMusic;
 let musicStarted = false;
 
 //-------------------------------------------------------------------//------------------------BASE DE DATOS-------------------------------------------//-------------------------------------------------------------------//-------------------------------------------------------------------
+const SERVER_CONFIG = {
+    ip: '26.98.46.140', 
+    port: 3000,
+    get baseURL() {
+        return `http://${this.ip}:${this.port}`;
+    }
+};
+
+async function detectServer() {
+    const possibleIPs = [
+        'localhost',          
+        '26.98.46.140',      
+        '25.0.0.1',          
+        '25.0.0.2',          
+        '10.0.0.1',           
+    ];
+    
+    for (const ip of possibleIPs) {
+        try {
+            console.log(`Probando servidor en: ${ip}`);
+            const response = await fetch(`http://${ip}:${SERVER_CONFIG.port}/api/ping`, {
+                timeout: 30000 
+            });
+            
+            if (response.ok) {
+                SERVER_CONFIG.ip = ip;
+                console.log(`Servidor encontrado en: ${ip}`);
+                return true;
+            }
+        } catch (error) {
+           
+        }
+    }
+    
+    console.log('No se pudo encontrar el servidor');
+    return false;
+}
+
 async function checkDatabaseConnection() {
     try {
-        const response = await fetch('http://localhost:3000/api/db-status');
+        const response = await fetch(`${SERVER_CONFIG.baseURL}/api/db-status`);
         const data = await response.json();
         dbConnected = data.connected;
         console.log('Estado de BD:', dbConnected ? 'Conectada' : 'Desconectada');
+        console.log('Conectado a servidor:', SERVER_CONFIG.ip);
     } catch (error) {
-        console.log('BD no disponible, modo offline');
-        dbConnected = false;
+        console.log('BD no disponible, intentando detectar servidor...');
+        
+        const serverFound = await detectServer();
+        
+        if (serverFound) {
+            try {
+                const response = await fetch(`${SERVER_CONFIG.baseURL}/api/db-status`);
+                const data = await response.json();
+                dbConnected = data.connected;
+                console.log('Reconectado - Estado de BD:', dbConnected ? 'Conectada' : 'Desconectada');
+            } catch (retryError) {
+                console.log('BD no disponible, modo offline');
+                dbConnected = false;
+            }
+        } else {
+            console.log('BD no disponible, modo offline');
+            dbConnected = false;
+        }
     }
 }
 
@@ -55,7 +110,7 @@ async function saveScore() {
     }
     
     try {
-        const response = await fetch('http://localhost:3000/api/guardar-puntuacion', {
+        const response = await fetch(`${SERVER_CONFIG.baseURL}/api/guardar-puntuacion`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -64,7 +119,7 @@ async function saveScore() {
                 nivel: currentLevel,
                 puntuacion: score,
                 tiempo: gameTime,
-                modo: 'coop'  // Añadido para modo cooperativo
+                modo: 'coop'  
             })
         });
         
@@ -73,16 +128,67 @@ async function saveScore() {
             console.log('Puntuación guardada en BD (modo coop):', {
                 nivel: currentLevel,
                 puntuacion: score,
-                tiempo: gameTime
+                tiempo: gameTime,
+                servidor: SERVER_CONFIG.ip
             });
         } else {
             console.log('Error guardando puntuación:', data.message);
         }
     } catch (error) {
         console.log('Error enviando puntuación:', error);
+        
+        console.log('Intentando reconectar al servidor...');
+        await checkDatabaseConnection();
     }
 }
 
+async function getBestScores(modo = 'coop') {
+    if (!dbConnected) {
+        console.log('BD no disponible - no se pueden obtener puntuaciones');
+        return [];
+    }
+    
+    try {
+        const response = await fetch(`${SERVER_CONFIG.baseURL}/api/mejores-puntuaciones?modo=${modo}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('Mejores puntuaciones obtenidas:', data.data);
+            return data.data;
+        } else {
+            console.log('Error obteniendo puntuaciones:', data.message);
+            return [];
+        }
+    } catch (error) {
+        console.log('Error obteniendo puntuaciones:', error);
+        return [];
+    }
+}
+
+function setServerIP(newIP, newPort = 3000) {
+    SERVER_CONFIG.ip = newIP;
+    SERVER_CONFIG.port = newPort;
+    console.log(`Nueva configuración del servidor: ${SERVER_CONFIG.baseURL}`);
+    
+    checkDatabaseConnection();
+}
+
+async function initializeGameClient() {
+    console.log('Inicializando cliente del juego...');
+    
+    await checkDatabaseConnection();
+    
+    if (!dbConnected) {
+        console.log('Opciones disponibles:');
+        console.log('1. Cambiar IP manualmente: setServerIP("tu.ip.aqui")');
+        console.log('2. El juego funcionará en modo offline');
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.setServerIP = setServerIP;
+    window.SERVER_CONFIG = SERVER_CONFIG;
+}
 
 
 //-------------------------------------------------------------------//-------------------------------------------------------------------//-------------------------------------------------------------------//-------------------------------------------------------------------//-------------------------------------------------------------------
@@ -480,7 +586,7 @@ function updateBoss(){
                 boss.lastShot = currentTime;
             }
 
-            if (currentTime - boss.specialAttackTimer > 600){
+            if (currentTime - boss.specialAttackTimer > 800){
                 bossSpecialAttack();
                 boss.specialAttackTimer = currentTime;
             }
