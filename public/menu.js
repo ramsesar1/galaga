@@ -1,6 +1,6 @@
 const menuSketch = (p) => {
     let selectedOption = 0;
-    let maxOptions = 3; // Ahora son 3 opciones
+    let maxOptions = 3;
     let stars = [];
     let titleColor = 0;
     let blinkTimer = 0;

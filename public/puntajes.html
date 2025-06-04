@@ -288,255 +288,424 @@
     </div>
 
     <script>
-        // Sistema de conexión universal
-        class UniversalScoreClient {
-            constructor() {
-                this.connectionType = null; // 'local', 'remote', null
-                this.gameClient = null;
-                this.localURL = 'http://localhost:3000';
-                
-                // IPs posibles para servidor remoto - CONFIGURA ESTAS IPs
-                this.possibleRemoteIPs = [
-                    '26.98.46.140',  // Cambia por la IP real del servidor
-                    '26.98.46.140',   // IP de ejemplo de Hamachi
-                    '25.0.0.1',       // IPs típicas de Hamachi
-                    '25.0.0.2',
-                    '25.0.0.3'
-                ];
-            }
+class UniversalScoreClient {
+    constructor() {
+        this.connectionType = null; // 'local', 'remote', null
+        this.gameClient = null;
+        this.localURL = 'http://localhost:3000';
+        this.fallbackURL = 'http://localhost:3001'; // Puerto del serverremoto en modo host local
+        this.connectionAttempts = 0;
+        this.maxRetries = 3;
+    }
 
-            async detectConnection() {
-                const statusDiv = document.getElementById('connectionStatus');
-                
-                // Intentar conexión local primero
-                try {
-                    const response = await fetch(`${this.localURL}/api/db-status`, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.connected) {
-                            this.connectionType = 'local';
-                            statusDiv.textContent = '🟢 Conectado: Servidor Local';
-                            statusDiv.className = 'connection-status connection-local';
-                            console.log('Conexión local establecida');
-                            return true;
-                        }
-                    }
-                } catch (error) {
-                    console.log('Servidor local no disponible, probando conexiones remotas...');
-                }
-
-                // Si no hay conexión local, probar conexiones remotas
-                for (const ip of this.possibleRemoteIPs) {
-                    try {
-                        console.log(`Probando servidor remoto en: ${ip}`);
-                        
-                        // Crear cliente temporal para probar
-                        const tempClient = new GameClient(ip, 3000);
-                        const connected = await tempClient.checkServerConnection();
-                        
-                        if (connected) {
-                            this.connectionType = 'remote';
-                            this.gameClient = tempClient;
-                            statusDiv.textContent = `🟡 Conectado: Servidor Remoto (${ip})`;
-                            statusDiv.className = 'connection-status connection-remote';
-                            console.log(`Conexión remota establecida con: ${ip}`);
-                            return true;
-                        }
-                    } catch (error) {
-                        console.log(`Error conectando a ${ip}:`, error);
-                    }
-                }
-
-                // No se encontró ninguna conexión
-                this.connectionType = null;
-                statusDiv.textContent = '🔴 Sin conexión al servidor';
-                statusDiv.className = 'connection-status connection-error';
-                console.log('No se pudo establecer conexión con ningún servidor');
-                return false;
-            }
-
-            async obtenerMejoresPuntuaciones(modo) {
-                if (this.connectionType === 'local') {
-                    // Usar conexión local directa
-                    try {
-                        const response = await fetch(`${this.localURL}/api/mejores-puntuaciones?modo=${modo}`);
-                        const result = await response.json();
-                        return result.success ? result.data : [];
-                    } catch (error) {
-                        console.error('Error con servidor local:', error);
-                        return [];
-                    }
-                } else if (this.connectionType === 'remote' && this.gameClient) {
-                    // Usar cliente remoto
-                    return await this.gameClient.obtenerMejoresPuntuaciones(modo);
-                } else {
-                    console.error('No hay conexión disponible');
-                    return [];
-                }
-            }
-        }
-
-        // Cliente GameClient integrado (copiado de serverremoto.js)
-        class GameClient {
-            constructor(serverIP = '26.98.46.140', serverPort = 3000) {
-                this.baseURL = `http://${serverIP}:${serverPort}`;
-                this.isConnected = false;
-            }
-
-            async checkServerConnection() {
-                try {
-                    const response = await fetch(`${this.baseURL}/api/db-status`, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.isConnected = data.connected;
-                        return data.connected;
-                    }
-                    
-                    this.isConnected = false;
-                    return false;
-                } catch (error) {
-                    this.isConnected = false;
-                    return false;
-                }
-            }
-
-            async obtenerMejoresPuntuaciones(modo = 'single') {
-                if (!this.isConnected) {
-                    await this.checkServerConnection();
-                }
-
-                try {
-                    const response = await fetch(`${this.baseURL}/api/mejores-puntuaciones?modo=${modo}`, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        return result.data;
-                    } else {
-                        console.error('Error obteniendo puntuaciones:', result.message);
-                        return [];
-                    }
-                } catch (error) {
-                    console.error('Error de red:', error);
-                    return [];
-                }
-            }
-        }
-
-        // Instancia global del cliente universal
-        const universalClient = new UniversalScoreClient();
-
-        function createStars() {
-            for (let i = 0; i < 100; i++) {
-                const star = document.createElement('div');
-                star.className = 'star';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.width = star.style.height = Math.random() * 3 + 1 + 'px';
-                star.style.animationDelay = Math.random() * 2 + 's';
-                document.body.appendChild(star);
-            }
-        }
-
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        function formatScore(score) {
-            return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        }
-
-        async function loadScores(mode) {
-            const isPlayer1 = mode === 'single';
-            const loadingId = isPlayer1 ? 'loading1' : 'loading2';
-            const errorId = isPlayer1 ? 'error1' : 'error2';
-            const scoresId = isPlayer1 ? 'scores1' : 'scores2';
-            const bodyId = isPlayer1 ? 'scoresBody1' : 'scoresBody2';
-
-            // Mostrar loading
-            document.getElementById(loadingId).style.display = 'block';
-            document.getElementById(errorId).style.display = 'none';
-            document.getElementById(scoresId).style.display = 'none';
-
-            try {
-                // Verificar conexión si es necesario
-                if (!universalClient.connectionType) {
-                    await universalClient.detectConnection();
-                }
-
-                const scores = await universalClient.obtenerMejoresPuntuaciones(mode);
-                
-                document.getElementById(loadingId).style.display = 'none';
-
-                if (scores && scores.length > 0) {
-                    displayScores(scores, bodyId);
-                    document.getElementById(scoresId).style.display = 'block';
-                } else {
-                    showError(errorId, 'No hay puntajes registrados');
-                }
-            } catch (error) {
-                document.getElementById(loadingId).style.display = 'none';
-                showError(errorId, 'Error conectando con el servidor');
-                console.error('Error cargando puntajes:', error);
-            }
-        }
-
-        function showError(errorId, message) {
-            const errorDiv = document.getElementById(errorId);
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function displayScores(scores, bodyId) {
-            const tbody = document.getElementById(bodyId);
-            tbody.innerHTML = '';
-
-            scores.forEach((score, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="rank">${index + 1}</td>
-                    <td>${score.nivel}</td>
-                    <td class="score">${formatScore(score.puntuacion)}</td>
-                    <td>${formatTime(score.tiempo)}</td>
-                `;
-                tbody.appendChild(row);
+    async detectConnection() {
+        const statusDiv = document.getElementById('connectionStatus');
+        this.connectionAttempts++;
+        
+        // Intentar conexión local primero (server.js)
+        try {
+            const response = await fetch(`${this.localURL}/api/db-status`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000)
             });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.connected) {
+                    this.connectionType = 'local';
+                    statusDiv.textContent = `🟢 Conectado: Servidor Local (${data.totalNodes || 1} nodos)`;
+                    statusDiv.className = 'connection-status connection-local';
+                    console.log('✅ Conexión local establecida:', data);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Servidor local no disponible:', error.message);
         }
 
-        function returnToMenu() {
-            window.location.href = 'index.html';
+        // Si no hay conexión local, intentar con cliente remoto distribuido
+        try {
+            // Crear instancia del GameClient si no existe
+            if (!this.gameClient) {
+                this.gameClient = new GameClient();
+            }
+            
+            // Esperar a que el cliente establezca conexión
+            let attempts = 0;
+            const maxWaitAttempts = 10;
+            
+            while (attempts < maxWaitAttempts && !this.gameClient.isConnected && !this.gameClient.isLocalHost) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            if (this.gameClient.isConnected) {
+                this.connectionType = 'remote';
+                const serverInfo = this.gameClient.currentServer;
+                const fallbackInfo = this.gameClient.fallbackMode ? ' (Modo Fallback)' : '';
+                statusDiv.textContent = `🟡 Conectado: Servidor Remoto (${serverInfo})${fallbackInfo}`;
+                statusDiv.className = 'connection-status connection-remote';
+                console.log(`✅ Conexión remota establecida con: ${serverInfo}`);
+                return true;
+            } else if (this.gameClient.isLocalHost) {
+                this.connectionType = 'fallback';
+                statusDiv.textContent = `🔶 Conectado: Servidor Local de Respaldo (Puerto ${this.gameClient.localPort})`;
+                statusDiv.className = 'connection-status connection-fallback';
+                console.log('✅ Servidor local de respaldo activo');
+                return true;
+            }
+        } catch (error) {
+            console.log('❌ Error con cliente remoto:', error.message);
         }
 
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', async function() {
-            createStars();
+        // Intentar conexión directa al servidor de respaldo
+        try {
+            const response = await fetch(`${this.fallbackURL}/api/db-status`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(2000)
+            });
             
-            // Detectar tipo de conexión
-            await universalClient.detectConnection();
-            
-            // Cargar puntajes
-            loadScores('single');
-            loadScores('coop');
-        });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.connected) {
+                    this.connectionType = 'fallback';
+                    statusDiv.textContent = '🔶 Conectado: Servidor Local de Respaldo';
+                    statusDiv.className = 'connection-status connection-fallback';
+                    console.log('✅ Conexión directa a servidor de respaldo');
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Servidor de respaldo no disponible:', error.message);
+        }
 
-        // Auto-refresh cada 30 segundos
-        setInterval(() => {
-            loadScores('single');
-            loadScores('coop');
-        }, 30000);
+        // No se encontró ninguna conexión
+        this.connectionType = null;
+        statusDiv.textContent = '🔴 Sin conexión - Verificando servidores...';
+        statusDiv.className = 'connection-status connection-error';
+        console.log('❌ No se pudo establecer conexión con ningún servidor');
+        return false;
+    }
+
+    async obtenerMejoresPuntuaciones(modo) {
+        if (this.connectionType === 'local') {
+            // Usar conexión local directa (server.js)
+            try {
+                const response = await fetch(`${this.localURL}/api/mejores-puntuaciones?modo=${modo}`, {
+                    signal: AbortSignal.timeout(8000)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                return result.success ? result.data : [];
+            } catch (error) {
+                console.error('❌ Error con servidor local:', error.message);
+                // Si falla local, intentar con remoto
+                return await this.fallbackToRemote(modo);
+            }
+        } else if (this.connectionType === 'remote' && this.gameClient) {
+            // Usar cliente remoto distribuido
+            try {
+                return await this.gameClient.obtenerMejoresPuntuaciones(modo);
+            } catch (error) {
+                console.error('❌ Error con servidor remoto:', error.message);
+                // Intentar fallback directo
+                return await this.fallbackToDirect(modo);
+            }
+        } else if (this.connectionType === 'fallback') {
+            // Usar servidor de respaldo directamente
+            return await this.fallbackToDirect(modo);
+        } else {
+            console.error('❌ No hay conexión disponible');
+            return [];
+        }
+    }
+
+    async fallbackToRemote(modo) {
+        console.log('🔄 Intentando fallback a servidor remoto...');
+        try {
+            if (!this.gameClient) {
+                this.gameClient = new GameClient();
+                // Esperar más tiempo para establecer conexión
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            
+            // Forzar verificación de salud
+            await this.gameClient.checkHealth();
+            
+            if (this.gameClient.isConnected || this.gameClient.isLocalHost) {
+                this.connectionType = this.gameClient.isLocalHost ? 'fallback' : 'remote';
+                
+                // Actualizar estado visual
+                const statusDiv = document.getElementById('connectionStatus');
+                if (this.gameClient.isLocalHost) {
+                    statusDiv.textContent = `🔶 Conectado: Servidor Local de Respaldo (Puerto ${this.gameClient.localPort})`;
+                    statusDiv.className = 'connection-status connection-fallback';
+                } else {
+                    statusDiv.textContent = `🟡 Conectado: Servidor Remoto (${this.gameClient.currentServer})`;
+                    statusDiv.className = 'connection-status connection-remote';
+                }
+                
+                return await this.gameClient.obtenerMejoresPuntuaciones(modo);
+            }
+        } catch (error) {
+            console.error('❌ Fallback remoto falló:', error.message);
+        }
+        return [];
+    }
+
+    async fallbackToDirect(modo) {
+        console.log('🔄 Intentando conexión directa a servidor de respaldo...');
+        try {
+            const response = await fetch(`${this.fallbackURL}/api/mejores-puntuaciones?modo=${modo}`, {
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                return result.success ? result.data : [];
+            }
+        } catch (error) {
+            console.error('❌ Conexión directa falló:', error.message);
+        }
+        return [];
+    }
+
+    async reconectar() {
+        console.log('🔄 Intentando reconexión completa...');
+        
+        // Resetear estado
+        this.connectionType = null;
+        this.connectionAttempts = 0;
+        
+        // Reinicializar GameClient si existe
+        if (this.gameClient) {
+            try {
+                this.gameClient.destroy();
+            } catch (error) {
+                console.log('⚠️ Error destruyendo cliente anterior:', error.message);
+            }
+            this.gameClient = null;
+        }
+        
+        // Intentar reconexión con múltiples intentos
+        for (let i = 0; i < this.maxRetries; i++) {
+            console.log(`🔄 Intento de reconexión ${i + 1}/${this.maxRetries}`);
+            
+            const connected = await this.detectConnection();
+            if (connected) {
+                console.log('✅ Reconexión exitosa');
+                return true;
+            }
+            
+            if (i < this.maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+        
+        console.log('❌ Reconexión falló después de todos los intentos');
+        return false;
+    }
+
+    getConnectionInfo() {
+        const info = {
+            tipo: this.connectionType,
+            intentos: this.connectionAttempts,
+            timestamp: new Date().toISOString()
+        };
+        
+        if (this.gameClient) {
+            const status = this.gameClient.getStatus();
+            info.servidorRemoto = {
+                actual: status.actual,
+                conectado: status.conectado,
+                fallback: status.fallback,
+                hostLocal: status.hostLocal,
+                servidores: status.servidores
+            };
+        }
+        
+        return info;
+    }
+}
+
+// Instancia global del cliente universal
+const universalClient = new UniversalScoreClient();
+
+function createStars() {
+    for (let i = 0; i < 100; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.width = star.style.height = Math.random() * 3 + 1 + 'px';
+        star.style.animationDelay = Math.random() * 2 + 's';
+        document.body.appendChild(star);
+    }
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatScore(score) {
+    return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+async function loadScores(mode) {
+    const isPlayer1 = mode === 'single';
+    const loadingId = isPlayer1 ? 'loading1' : 'loading2';
+    const errorId = isPlayer1 ? 'error1' : 'error2';
+    const scoresId = isPlayer1 ? 'scores1' : 'scores2';
+    const bodyId = isPlayer1 ? 'scoresBody1' : 'scoresBody2';
+
+    // Mostrar loading
+    document.getElementById(loadingId).style.display = 'block';
+    document.getElementById(errorId).style.display = 'none';
+    document.getElementById(scoresId).style.display = 'none';
+
+    try {
+        // Verificar conexión si es necesario
+        if (!universalClient.connectionType) {
+            console.log('🔍 Detectando conexión para cargar puntajes...');
+            const connected = await universalClient.detectConnection();
+            if (!connected) {
+                throw new Error('Sin conexión a servidores');
+            }
+        }
+
+        const scores = await universalClient.obtenerMejoresPuntuaciones(mode);
+        
+        document.getElementById(loadingId).style.display = 'none';
+
+        if (scores && scores.length > 0) {
+            displayScores(scores, bodyId);
+            document.getElementById(scoresId).style.display = 'block';
+            console.log(`✅ ${scores.length} puntajes cargados para modo ${mode}`);
+        } else {
+            showError(errorId, 'No hay puntajes registrados');
+            console.log(`⚠️ No hay puntajes para modo ${mode}`);
+        }
+    } catch (error) {
+        document.getElementById(loadingId).style.display = 'none';
+        showError(errorId, 'Error conectando con el servidor');
+        console.error('❌ Error cargando puntajes:', error.message);
+        
+        // Mostrar información de conexión en consola para depuración
+        console.log('📊 Info de conexión:', universalClient.getConnectionInfo());
+        
+        // Intentar reconexión automática después de un tiempo
+        setTimeout(async () => {
+            console.log('🔄 Intentando reconexión automática...');
+            const reconnected = await universalClient.reconectar();
+            if (reconnected) {
+                console.log('✅ Reconexión exitosa, recargando puntajes...');
+                loadScores(mode);
+            }
+        }, 5000);
+    }
+}
+
+function showError(errorId, message) {
+    const errorDiv = document.getElementById(errorId);
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+function displayScores(scores, bodyId) {
+    const tbody = document.getElementById(bodyId);
+    tbody.innerHTML = '';
+
+    scores.forEach((score, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="rank">${index + 1}</td>
+            <td>${score.nivel}</td>
+            <td class="score">${formatScore(score.puntuacion)}</td>
+            <td>${formatTime(score.tiempo)}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function returnToMenu() {
+    window.location.href = 'index.html';
+}
+
+// Función para mostrar información de debug (opcional)
+function showDebugInfo() {
+    const info = universalClient.getConnectionInfo();
+    console.log('🔧 Debug Info:', info);
+    
+    // Mostrar en consola el estado completo
+    if (universalClient.gameClient) {
+        console.log('🔧 Estado GameClient:', universalClient.gameClient.getStatus());
+    }
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Inicializando sistema de puntajes...');
+    createStars();
+    
+    // Detectar tipo de conexión con más tiempo
+    try {
+        await universalClient.detectConnection();
+        
+        // Cargar puntajes
+        await Promise.all([
+            loadScores('single'),
+            loadScores('coop')
+        ]);
+        
+        console.log('✅ Sistema inicializado correctamente');
+    } catch (error) {
+        console.error('❌ Error en inicialización:', error.message);
+    }
+});
+
+// Auto-refresh mejorado con manejo de errores robusto
+setInterval(async () => {
+    try {
+        console.log('🔄 Auto-refresh iniciado...');
+        
+        // Verificar estado de conexión antes de cargar
+        if (universalClient.connectionType) {
+            await Promise.allSettled([
+                loadScores('single'),
+                loadScores('coop')
+            ]);
+            console.log('✅ Auto-refresh completado');
+        } else {
+            console.log('⚠️ Sin conexión, intentando reconectar...');
+            const reconnected = await universalClient.reconectar();
+            if (reconnected) {
+                await Promise.allSettled([
+                    loadScores('single'),
+                    loadScores('coop')
+                ]);
+                console.log('✅ Reconexión y refresh completados');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error en auto-refresh:', error.message);
+    }
+}, 30000);
+
+// Event listener para debugging (presiona F12 para ver info de conexión)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'F12') {
+        event.preventDefault();
+        showDebugInfo();
+    }
+});
     </script>
 </body>
 </html>

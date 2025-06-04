@@ -35,7 +35,7 @@ async function detectServer() {
     const possibleIPs = [
         'localhost',          
         '26.98.46.140',      
-        '25.0.0.1',           
+        '25.46.132.85',           
         '25.0.0.2',           
         '10.0.0.1',         
     ];

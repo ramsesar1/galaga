@@ -249,7 +249,7 @@ function initializeWebRTC() {
 
 function initializeSocketConnection() {
     // Conexión con Socket.IO si se usa un servidor
-    // socket = io('http://' + hostIP + ':3000');
+    socket = io('http://26.98.46.140:3000:3000');
 }
 
 // Función para sincronizar datos del juego
