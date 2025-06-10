@@ -30,42 +30,69 @@ let musicStarted = false;
 
 //-------------------------------------------------------------------//------------------------BASE DE DATOS-------------------------------------------//-------------------------------------------------------------------//-------------------------------------------------------------------
 const SERVER_CONFIG = {
-    ip: '26.98.46.140', 
+    ip: '26.98.46.140',
     port: 3000,
     get baseURL() {
         return `http://${this.ip}:${this.port}`;
     }
 };
 
-async function detectServer() {
-    const possibleIPs = [
-        'localhost',          
-        '25.46.132.85',      
-        '25.2.184.111',          
-        '25.0.0.2',          
-        '10.0.0.1',           
-    ];
-    
-    for (const ip of possibleIPs) {
-        try {
-            console.log(`Probando servidor en: ${ip}`);
-            const response = await fetch(`http://${ip}:${SERVER_CONFIG.port}/api/ping`, {
-                timeout: 30000 
+
+function pingServer(ip, port, timeout = 1000) {
+    return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error('timeout'));
+        }, timeout);
+
+        fetch(`http://${ip}:${port}/api/ping`, { signal: controller.signal })
+            .then(response => {
+                clearTimeout(timer);
+                if (response.ok) {
+                    resolve(ip);
+                } else {
+                    reject(new Error(`Status ${response.status}`));
+                }
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                reject(err);
             });
-            
-            if (response.ok) {
-                SERVER_CONFIG.ip = ip;
-                console.log(`Servidor encontrado en: ${ip}`);
-                return true;
-            }
-        } catch (error) {
-           
-        }
-    }
-    
-    console.log('No se pudo encontrar el servidor');
-    return false;
+    });
 }
+
+async function detectServerInstant() {
+    const possibleIPs = [
+        '25.2.184.111',  // Cambia por la IP real del servidor
+                    '25.46.132.85',   // IP de ejemplo de Hamachi
+                    '25.2.230.25',
+                    '25.2.129.231'   
+    ];
+
+    try {
+        const ipEncontrada = await Promise.any(
+            possibleIPs.map(ip => pingServer(ip, SERVER_CONFIG.port))
+        );
+        SERVER_CONFIG.ip = ipEncontrada;
+        console.log(`Servidor encontrado en: ${ipEncontrada}`);
+        return true;
+    } catch {
+        console.log('No se pudo encontrar el servidor');
+        return false;
+    }
+}
+
+// Llamada ejemplo
+detectServerInstant().then(encontrado => {
+    if (encontrado) {
+        console.log(`Usando servidor en: ${SERVER_CONFIG.baseURL}`);
+        checkDatabaseConnection()
+    } else {
+        console.log('No se encontró ningún servidor disponible');
+    }
+});
+
 
 async function checkDatabaseConnection() {
     try {
@@ -77,7 +104,7 @@ async function checkDatabaseConnection() {
     } catch (error) {
         console.log('BD no disponible, intentando detectar servidor...');
         
-        const serverFound = await detectServer();
+        const serverFound = await detectServerInstant();
         
         if (serverFound) {
             try {
