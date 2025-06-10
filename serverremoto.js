@@ -6,7 +6,7 @@ const https = require('https');
 const { URL } = require('url');
 
 class GameClient {
-    constructor(servers = ['25.46.132.85:3000', '25.2.184.111:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000']) {
+    constructor(servers = ['25.46.132.85:3000', '25.2.184.111:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000']) {
         this.servers = [...servers];
         this.currentIndex = 0;
         this.isConnected = false;
@@ -16,7 +16,7 @@ class GameClient {
         this.localDB = null;
         this.localApp = null;
         this.localPort = 3001;
-        this.dbConfig = { host: 'localhost', user: 'root', password: '1234', database: 'galaga' };
+        this.dbConfig = { host: 'localhost', user: 'root', password: 'password', database: 'galaga' };
         this.nodeId = Math.random().toString(36).substr(2, 9);
         this.isLocalHost = false;
         
