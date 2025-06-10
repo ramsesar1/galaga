@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración unificada de red
 const NETWORK_CONFIG = {
-    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000'], 
+    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000'], 
     get selfAddress() {
         const localIP = this.getLocalIP();
         return `${localIP}:${PORT}`;
@@ -48,7 +48,7 @@ const NODE_STATE = {
     connectedClients: new Set() // Para trackear clientes conectados
 };
 
-const dbConfig = { host: 'localhost', user: 'root', password: '1234', database: 'galaga' };
+const dbConfig = { host: 'localhost', user: 'root', password: 'password', database: 'galaga' };
 
 // Conexión a base de datos con auto-reconexión
 async function ensureDBConnection() {

@@ -67,7 +67,8 @@ async function detectServerInstant() {
         '25.2.184.111',  // Cambia por la IP real del servidor
                     '25.46.132.85',   // IP de ejemplo de Hamachi
                     '25.2.230.25',
-                    '25.2.129.231'   
+                    '25.2.129.231',
+                    '25.53.168.17'   
     ];
 
     try {
