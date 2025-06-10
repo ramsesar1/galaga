@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración unificada de red
 const NETWORK_CONFIG = {
-    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000','25.0.172.108:3000','100.115.98.60:3000','100.66.170.97:3000'], 
+    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000','25.0.172.108:3000','100.115.98.60:3000','100.66.170.97:3000','100.99.129.8:3000'], 
     get selfAddress() {
         const localIP = this.getLocalIP();
         return `${localIP}:${PORT}`;
@@ -30,7 +30,7 @@ const NETWORK_CONFIG = {
         const interfaces = networkInterfaces();
         for (const name of Object.keys(interfaces)) {
             for (const iface of interfaces[name]) {
-                if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('25.')) {
+                if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('100.')) {
                     return iface.address;
                 }
             }
@@ -45,7 +45,7 @@ const NODE_STATE = {
     activeNodes: new Set(),
     dbConnection: null,
     lastSyncTime: Date.now(),
-    connectedClients: new Set() // Para trackear clientes conectados
+    connectedClients: new Set() 
 };
 
 const dbConfig = { host: 'localhost', user: 'root', password: 'password', database: 'galaga' };
