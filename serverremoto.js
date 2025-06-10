@@ -6,7 +6,7 @@ const https = require('https');
 const { URL } = require('url');
 
 class GameClient {
-    constructor(servers = ['25.46.132.85:3000', '25.2.184.111:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000']) {
+    constructor(servers = ['25.46.132.85:3000', '25.2.184.111:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000','25.0.172.108:3000']) {
         this.servers = [...servers];
         this.currentIndex = 0;
         this.isConnected = false;

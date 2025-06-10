@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración unificada de red
 const NETWORK_CONFIG = {
-    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000'], 
+    nodes: ['25.2.184.111:3000', '25.46.132.85:3000', '25.2.129.231:3000','25.2.230.25:3000','25.53.168.17:3000','25.56.66.184:3000','25.0.172.108:3000'], 
     get selfAddress() {
         const localIP = this.getLocalIP();
         return `${localIP}:${PORT}`;
